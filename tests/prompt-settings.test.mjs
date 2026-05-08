@@ -56,6 +56,9 @@ async function loadTagPilot({ selectedModel = 'openai', initialStore = {}, fetch
                 this.onload();
             }
         },
+        Cropper: class {
+            destroy() {}
+        },
         document: {
             getElementById: getElement,
             createElement: () => makeElement('created'),
@@ -144,6 +147,8 @@ globalThis.__tagpilotTest = {
     generateTags,
     autotagSingle,
     captionSingle,
+    showPreview,
+    cropPreviewImage,
     startBatchTagging,
     startBatchCaptioning,
     setDataset(value) { dataset = value; },
@@ -342,4 +347,23 @@ test('settings launcher is labeled and positioned at the top left', async () => 
 
     assert.match(html, /\.settings-icon \{[^}]*left: 10px;/s);
     assert.match(html, /id="settings-icon"[^>]*>[\s\S]*Settings[\s\S]*<\/div>/);
+});
+
+test('preview modal can start cropping the previewed image', async () => {
+    const html = await readFile(new URL('../tagpilot.html', import.meta.url), 'utf8');
+    assert.match(html, /id="preview-crop"/);
+
+    const { context, elements } = await loadTagPilot();
+    context.__tagpilotTest.setDataset([{ file: { name: 'image.png', type: 'image/png' }, tags: '', type: 'tags' }]);
+
+    context.__tagpilotTest.showPreview('blob:preview', 0);
+
+    assert.equal(elements.get('preview-image').src, 'blob:preview');
+    assert.equal(elements.get('preview-modal').style.display, 'flex');
+
+    context.__tagpilotTest.cropPreviewImage();
+
+    assert.equal(elements.get('preview-modal').style.display, 'none');
+    assert.equal(elements.get('crop-modal').style.display, 'flex');
+    assert.equal(elements.get('crop-image').src, 'blob:mock');
 });

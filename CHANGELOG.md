@@ -10,6 +10,7 @@
 - Fixed provider API key switching so Gemini, Claude, Grok, and OpenAI each reload their own saved key.
 - Added clearer provider HTTP errors, including useful OpenAI 401 messages.
 - Added a per-image processing indicator for single-image Tag and Caption actions.
+- Added a Crop button directly inside the image preview modal.
 - Added a no-install Node test harness for provider payloads and UI-state regressions.
 
 ## v1.5

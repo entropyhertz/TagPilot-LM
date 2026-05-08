@@ -253,6 +253,7 @@
 
         <div id="preview-modal" class="hidden fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4">
             <img id="preview-image" src="" class="max-w-full max-h-full object-contain rounded-lg">
+            <button id="preview-crop" class="absolute top-4 right-20 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow-lg">Crop</button>
             <button id="preview-close" class="absolute top-4 right-4 text-white text-4xl font-bold">&times;</button>
         </div>
 
@@ -273,6 +274,7 @@
         let isBatchProcessing = false;
         let cropper = null;
         let currentCropIndex = -1;
+        let currentPreviewIndex = -1;
 
         const DEFAULT_TAG_PROMPT = `You are an expert for creating photorealistic AI training datasets. Your task is to generate descriptive tags for the provided image for the purpose of SDXL lora training using kohya_ss.
 Follow these rules strictly:
@@ -324,6 +326,7 @@ Expected outcome is a human-readable continuous text consisting of several sente
         const previewModal = document.getElementById('preview-modal');
         const previewImage = document.getElementById('preview-image');
         const previewClose = document.getElementById('preview-close');
+        const previewCropButton = document.getElementById('preview-crop');
         const notification = document.getElementById('notification');
         const notificationText = document.getElementById('notification-text');
 
@@ -388,6 +391,7 @@ Expected outcome is a human-readable continuous text consisting of several sente
         stopCaptioningBtn.addEventListener('click', stopBatchProcessing);
         toggleCaptionPromptBtn.addEventListener('click', () => captionSystemPrompt.classList.toggle('hidden'));
         previewClose.addEventListener('click', hidePreview);
+        previewCropButton.addEventListener('click', cropPreviewImage);
         triggerWordInput.addEventListener('input', handleTriggerWordChange);
         tagViewerHeader.addEventListener('click', () => {
             tagViewerContent.classList.toggle('expanded');
@@ -1045,7 +1049,7 @@ Limit the caption to ${maxWords} words or fewer.`;
                     <div class="p-4 h-full flex items-center justify-center">
                         <span class="text-2xl font-bold text-gray-500">${index + 1}</span>
                     </div>
-                    <div class="w-2/5 flex-shrink-0 cursor-pointer thumbnail-container h-full" onclick="showPreview('${imageUrl}')">
+                    <div class="w-2/5 flex-shrink-0 cursor-pointer thumbnail-container h-full" onclick="showPreview('${imageUrl}', ${index})">
                         <img src="${imageUrl}" class="w-full h-full object-cover">
                     </div>
                     <div class="p-4 flex flex-col flex-grow min-w-0 h-full">
@@ -1234,13 +1238,22 @@ Limit the caption to ${maxWords} words or fewer.`;
             cropModal.style.display = 'none';
         }
 
-        function showPreview(url) {
+        function showPreview(url, index = -1) {
+            currentPreviewIndex = index;
             previewImage.src = url;
             previewModal.style.display = 'flex';
         }
 
+        function cropPreviewImage() {
+            if (currentPreviewIndex < 0 || !dataset[currentPreviewIndex]) return;
+            const index = currentPreviewIndex;
+            hidePreview();
+            openCrop(index);
+        }
+
         function hidePreview() {
             previewModal.style.display = 'none';
+            currentPreviewIndex = -1;
         }
 
         render();
