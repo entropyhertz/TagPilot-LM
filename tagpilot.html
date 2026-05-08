@@ -15,7 +15,8 @@
         ::-webkit-scrollbar-track { background: #2d3748; }
         ::-webkit-scrollbar-thumb { background: #4a5568; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #718096; }
-        .settings-icon { position: fixed; top: 10px; right: 10px; font-size: 32px; cursor: pointer; z-index: 1000; }
+        .settings-icon { position: fixed; top: 10px; left: 10px; display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 600; cursor: pointer; z-index: 1000; color: #e5e7eb; background: rgba(31, 41, 55, 0.9); border: 1px solid #374151; border-radius: 8px; padding: 8px 10px; }
+        .settings-icon-symbol { font-size: 22px; line-height: 1; }
         .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 2000; justify-content: center; align-items: center; }
         .modal-content { background: #1f2937; padding: 24px; border-radius: 12px; width: 320px; color: white; }
         .close { float: right; cursor: pointer; font-size: 24px; }
@@ -28,7 +29,10 @@
 <body class="bg-gray-900 text-gray-200">
 
     <!-- Settings Icon -->
-    <div id="settings-icon" class="settings-icon">⚙️</div>
+    <div id="settings-icon" class="settings-icon">
+        <span class="settings-icon-symbol">⚙️</span>
+        <span>Settings</span>
+    </div>
 
     <!-- Settings Modal -->
     <div id="settingsModal" class="modal">
@@ -40,6 +44,7 @@
                 <option value="gemini">Gemini</option>
                 <option value="grok">Grok</option>
                 <option value="openai">OpenAI</option>
+                <option value="claude">Claude</option>
                 <option value="deepdanbooru">DeepDanbooru</option>
                 <option value="wd14">WD1.4 Tagger</option>
             </select>
@@ -405,10 +410,13 @@ Expected outcome is a human-readable continuous text consisting of several sente
         // Settings functions
         function updateSettingsFields() {
             const model = modelSelect.value;
-            const isLLM = ['gemini', 'grok', 'openai'].includes(model);
+            const isLLM = ['gemini', 'grok', 'openai', 'claude'].includes(model);
             const isDD = model === 'deepdanbooru';
             const isWD = model === 'wd14';
 
+            if (isLLM) {
+                apiKeyInput.value = localStorage.getItem(model + 'ApiKey') || '';
+            }
             document.querySelectorAll('.api-key-label, #apiKeyInput').forEach(el => el.style.display = isLLM ? 'block' : 'none');
             document.querySelectorAll('.dd-threshold-label, #ddThreshold').forEach(el => el.style.display = isDD ? 'block' : 'none');
             document.querySelectorAll('.wd-apikey-label, #wdApiKeyInput, .wd-general-label, #wdGeneralThresh, .wd-char-label, #wdCharThresh').forEach(el => el.style.display = isWD ? 'block' : 'none');
@@ -432,7 +440,7 @@ Expected outcome is a human-readable continuous text consisting of several sente
         function saveSettings() {
             const model = modelSelect.value;
             localStorage.setItem('selectedModel', model);
-            if (['gemini', 'grok', 'openai'].includes(model)) localStorage.setItem(model + 'ApiKey', apiKeyInput.value.trim());
+            if (['gemini', 'grok', 'openai', 'claude'].includes(model)) localStorage.setItem(model + 'ApiKey', apiKeyInput.value.trim());
             if (model === 'wd14') localStorage.setItem('wd14ApiKey', wdApiKeyInput.value.trim());
             localStorage.setItem('ddThreshold', ddThreshold.value);
             localStorage.setItem('wdGeneralThresh', wdGeneralThresh.value);
@@ -481,6 +489,75 @@ Limit the caption to ${maxWords} words or fewer.`;
             return words.slice(0, maxWords).join(' ');
         }
 
+        function buildResponsesVisionInput(promptText, imageUrl) {
+            return [{
+                role: 'user',
+                content: [
+                    { type: 'input_text', text: promptText },
+                    { type: 'input_image', image_url: imageUrl, detail: 'high' }
+                ]
+            }];
+        }
+
+        function extractResponsesText(data) {
+            if (typeof data.output_text === 'string') return data.output_text.trim();
+            const parts = [];
+            (data.output || []).forEach(item => {
+                (item.content || []).forEach(content => {
+                    if (typeof content.text === 'string') parts.push(content.text);
+                });
+            });
+            return parts.join('\n').trim();
+        }
+
+        function extractClaudeText(data) {
+            return (data.content || [])
+                .filter(part => part.type === 'text' && typeof part.text === 'string')
+                .map(part => part.text)
+                .join('\n')
+                .trim();
+        }
+
+        function getImageMimeType(file) {
+            if (file.type && file.type.startsWith('image/')) return file.type;
+            const name = (file.name || '').toLowerCase();
+            if (name.endsWith('.jpg') || name.endsWith('.jpeg')) return 'image/jpeg';
+            if (name.endsWith('.webp')) return 'image/webp';
+            if (name.endsWith('.gif')) return 'image/gif';
+            return 'image/png';
+        }
+
+        function getProviderName(model) {
+            if (model === 'gemini') return 'Gemini';
+            if (model === 'grok') return 'Grok';
+            if (model === 'openai') return 'OpenAI';
+            if (model === 'claude') return 'Claude';
+            return model;
+        }
+
+        function extractApiErrorMessage(data) {
+            if (!data) return 'Request failed';
+            if (typeof data.error === 'string') return data.error;
+            if (typeof data.error?.message === 'string') return data.error.message;
+            if (typeof data.message === 'string') return data.message;
+            return 'Request failed';
+        }
+
+        async function readProviderJson(resp, providerName) {
+            let data = null;
+            try {
+                data = await resp.json();
+            } catch (error) {
+                if (resp.ok) throw error;
+            }
+
+            if (!resp.ok) {
+                throw new Error(`${providerName} API error ${resp.status}: ${extractApiErrorMessage(data)}`);
+            }
+
+            return data;
+        }
+
         async function fileToBase64(file) {
             return new Promise((resolve) => {
                 const reader = new FileReader();
@@ -491,7 +568,10 @@ Limit the caption to ${maxWords} words or fewer.`;
 
         async function generateImageText(imageFile, promptText) {
             const model = getModel();
+            const providerName = getProviderName(model);
             const base64 = await fileToBase64(imageFile);
+            const imageData = base64.split(',')[1];
+            const imageMimeType = getImageMimeType(imageFile);
 
             if (model === 'deepdanbooru') {
                 const threshold = localStorage.getItem('ddThreshold') || '0.5';
@@ -532,37 +612,66 @@ Limit the caption to ${maxWords} words or fewer.`;
 
             let responseText = '';
             if (model === 'gemini') {
-                const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+                const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${apiKey}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         contents: [{ parts: [
                             { text: promptText },
-                            { inline_data: { mime_type: imageFile.type, data: base64.split(',')[1] } }
+                            { inline_data: { mime_type: imageMimeType, data: imageData } }
                         ] }]
                     })
                 });
-                const data = await resp.json();
+                const data = await readProviderJson(resp, providerName);
                 responseText = data.candidates[0].content.parts[0].text;
+            } else if (model === 'claude') {
+                const resp = await fetch('https://api.anthropic.com/v1/messages', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-api-key': apiKey,
+                        'anthropic-version': '2023-06-01',
+                        'anthropic-dangerous-direct-browser-access': 'true'
+                    },
+                    body: JSON.stringify({
+                        model: 'claude-sonnet-4-5-20250929',
+                        max_tokens: 300,
+                        messages: [{
+                            role: 'user',
+                            content: [
+                                {
+                                    type: 'image',
+                                    source: {
+                                        type: 'base64',
+                                        media_type: imageMimeType,
+                                        data: imageData
+                                    }
+                                },
+                                { type: 'text', text: promptText }
+                            ]
+                        }]
+                    })
+                });
+                const data = await readProviderJson(resp, providerName);
+                responseText = extractClaudeText(data);
             } else {
                 const isGrok = model === 'grok';
-                const endpoint = isGrok ? 'https://api.x.ai/v1/chat/completions' : 'https://api.openai.com/v1/chat/completions';
-                const modelName = isGrok ? 'grok-vision-latest' : 'gpt-4o';
+                const endpoint = isGrok ? 'https://api.x.ai/v1/responses' : 'https://api.openai.com/v1/responses';
+                const modelName = isGrok ? 'grok-4.3' : 'gpt-5.4-mini';
                 const resp = await fetch(endpoint, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
                     body: JSON.stringify({
                         model: modelName,
-                        messages: [{ role: 'user', content: [
-                            { type: 'text', text: promptText },
-                            { type: 'image_url', image_url: { url: base64 } }
-                        ] }],
-                        max_tokens: 300
+                        input: buildResponsesVisionInput(promptText, base64),
+                        max_output_tokens: 300,
+                        store: false
                     })
                 });
-                const data = await resp.json();
-                responseText = data.choices[0].message.content;
+                const data = await readProviderJson(resp, providerName);
+                responseText = extractResponsesText(data);
             }
+            if (!responseText) throw new Error(`${providerName} returned no text`);
             return responseText.trim();
         }
 
@@ -774,6 +883,30 @@ Limit the caption to ${maxWords} words or fewer.`;
             renderTagViewer();
         }
 
+        function setSingleProcessing(index, label) {
+            const item = dataset[index];
+            if (!item) return;
+            item.processing = label;
+
+            const status = document.querySelector(`.single-processing-status[data-index='${index}']`);
+            if (!status) return;
+
+            const isProcessing = Boolean(label);
+            const text = status.querySelector('.single-processing-text');
+            const spinner = status.querySelector('.single-processing-spinner');
+            const buttons = document.querySelectorAll(`[data-index='${index}'].crop-btn, [data-index='${index}'].autotag-single-button, [data-index='${index}'].caption-single-button`);
+
+            status.classList.toggle('invisible', !isProcessing);
+            status.setAttribute('aria-hidden', isProcessing ? 'false' : 'true');
+            if (text) text.textContent = isProcessing ? 'Processing...' : '';
+            if (spinner) spinner.classList.toggle('hidden', !isProcessing);
+            buttons.forEach(button => {
+                button.disabled = isProcessing;
+                button.classList.toggle('opacity-50', isProcessing);
+                button.classList.toggle('cursor-not-allowed', isProcessing);
+            });
+        }
+
         function openTagSettings() {
             if (dataset.length === 0) return showNotification("No images");
             tagSettingsConfig.classList.remove('hidden');
@@ -924,7 +1057,14 @@ Limit the caption to ${maxWords} words or fewer.`;
                         </div>
                         <div class="flex flex-grow gap-3 min-h-0">
                             <div class="tag-area-wrapper w-full flex-grow bg-gray-700 border border-gray-600 rounded-md p-2 flex flex-wrap items-start content-start gap-2 overflow-y-auto" data-index="${index}"></div>
-                            <div class="flex flex-col gap-2">
+                            <div class="flex flex-col gap-2 w-28">
+                                <div class="single-processing-status ${item.processing ? '' : 'invisible'} h-5 flex items-center justify-end gap-2 text-[11px] text-teal-300 whitespace-nowrap" data-index="${index}" aria-hidden="${item.processing ? 'false' : 'true'}">
+                                    <span class="single-processing-text">${item.processing ? 'Processing...' : ''}</span>
+                                    <svg class="single-processing-spinner ${item.processing ? '' : 'hidden'} animate-spin h-3.5 w-3.5 text-teal-300 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                </div>
                                 <button class="crop-btn bg-blue-600 hover:bg-blue-700 py-2 px-3 rounded text-sm" data-index="${index}">Crop</button>
                                 <button class="autotag-single-button bg-teal-600 hover:bg-teal-700 py-2 px-3 rounded text-sm" data-index="${index}">Tag</button>
                                 <button class="caption-single-button bg-purple-600 hover:bg-purple-700 py-2 px-3 rounded text-sm" data-index="${index}">Caption</button>
@@ -1033,6 +1173,7 @@ Limit the caption to ${maxWords} words or fewer.`;
         }
 
         async function autotagSingle(index) {
+            setSingleProcessing(index, 'Tagging');
             try {
                 const tags = await generateTags(dataset[index].file);
                 dataset[index].tags = currentTriggerWord ? currentTriggerWord + ', ' + tags : tags;
@@ -1042,10 +1183,13 @@ Limit the caption to ${maxWords} words or fewer.`;
                 showNotification("Tagged");
             } catch (e) {
                 showNotification("Error: " + e.message);
+            } finally {
+                setSingleProcessing(index, null);
             }
         }
 
         async function captionSingle(index) {
+            setSingleProcessing(index, 'Captioning');
             try {
                 const caption = await generateCaption(dataset[index].file);
                 dataset[index].tags = caption;
@@ -1055,6 +1199,8 @@ Limit the caption to ${maxWords} words or fewer.`;
                 showNotification("Captioned");
             } catch (e) {
                 showNotification("Error: " + e.message);
+            } finally {
+                setSingleProcessing(index, null);
             }
         }
 
