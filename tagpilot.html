@@ -445,6 +445,42 @@ Expected outcome is a human-readable continuous text consisting of several sente
         function getApiKey() { return localStorage.getItem(getModel() + 'ApiKey') || ''; }
         function getWDKey() { return localStorage.getItem('wd14ApiKey') || ''; }
 
+        function getIntegerSetting(input, fallback, min, max) {
+            const parsed = parseInt(input.value, 10);
+            if (!Number.isFinite(parsed)) return fallback;
+            return Math.min(max, Math.max(min, parsed));
+        }
+
+        function getTagLimit() {
+            return getIntegerSetting(settingMaxTags, 30, 1, 100);
+        }
+
+        function getCaptionWordLimit() {
+            return getIntegerSetting(settingMaxCaptionLen, 50, 5, 200);
+        }
+
+        function getPromptValue(input, fallback) {
+            return input.value.trim() || fallback;
+        }
+
+        function buildTagPrompt(maxTags) {
+            return `${getPromptValue(tagSystemPrompt, DEFAULT_TAG_PROMPT)}
+
+Limit the output to ${maxTags} comma-separated tags or fewer.`;
+        }
+
+        function buildCaptionPrompt(maxWords) {
+            return `${getPromptValue(captionSystemPrompt, DEFAULT_CAPTION_PROMPT)}
+
+Limit the caption to ${maxWords} words or fewer.`;
+        }
+
+        function trimCaptionToWordLimit(text, maxWords) {
+            const words = text.trim().split(/\s+/).filter(Boolean);
+            if (words.length <= maxWords) return text.trim();
+            return words.slice(0, maxWords).join(' ');
+        }
+
         async function fileToBase64(file) {
             return new Promise((resolve) => {
                 const reader = new FileReader();
@@ -453,7 +489,7 @@ Expected outcome is a human-readable continuous text consisting of several sente
             });
         }
 
-        async function generateCaption(imageFile) {
+        async function generateImageText(imageFile, promptText) {
             const model = getModel();
             const base64 = await fileToBase64(imageFile);
 
@@ -501,7 +537,7 @@ Expected outcome is a human-readable continuous text consisting of several sente
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         contents: [{ parts: [
-                            { text: "Provide detailed comma-separated tags for LoRA training." },
+                            { text: promptText },
                             { inline_data: { mime_type: imageFile.type, data: base64.split(',')[1] } }
                         ] }]
                     })
@@ -518,7 +554,7 @@ Expected outcome is a human-readable continuous text consisting of several sente
                     body: JSON.stringify({
                         model: modelName,
                         messages: [{ role: 'user', content: [
-                            { type: 'text', text: 'Provide detailed comma-separated tags for LoRA training.' },
+                            { type: 'text', text: promptText },
                             { type: 'image_url', image_url: { url: base64 } }
                         ] }],
                         max_tokens: 300
@@ -528,6 +564,15 @@ Expected outcome is a human-readable continuous text consisting of several sente
                 responseText = data.choices[0].message.content;
             }
             return responseText.trim();
+        }
+
+        async function generateTags(imageFile, maxTags = getTagLimit()) {
+            return generateImageText(imageFile, buildTagPrompt(maxTags));
+        }
+
+        async function generateCaption(imageFile, maxWords = getCaptionWordLimit()) {
+            const caption = await generateImageText(imageFile, buildCaptionPrompt(maxWords));
+            return trimCaptionToWordLimit(caption, maxWords);
         }
 
         function showNotification(text, duration = 3000) {
@@ -756,7 +801,7 @@ Expected outcome is a human-readable continuous text consisting of several sente
         }
 
         async function startBatchTagging() {
-            const maxTags = parseInt(settingMaxTags.value) || 30;
+            const maxTags = getTagLimit();
             const mode = document.querySelector('input[name="tag-mode"]:checked').value;
 
             tagSettingsConfig.classList.add('hidden');
@@ -774,7 +819,7 @@ Expected outcome is a human-readable continuous text consisting of several sente
 
                 if (shouldTag) {
                     try {
-                        const newTags = await generateCaption(item.file);
+                        const newTags = await generateTags(item.file, maxTags);
                         let tags = newTags.split(',').map(t => t.trim()).filter(Boolean);
                         if (mode === 'append') {
                             tags = [...new Set(item.tags.split(',').map(t => t.trim()).filter(Boolean).concat(tags))];
@@ -804,6 +849,7 @@ Expected outcome is a human-readable continuous text consisting of several sente
         }
 
         async function startBatchCaptioning() {
+            const maxWords = getCaptionWordLimit();
             const mode = document.querySelector('input[name="caption-mode"]:checked').value;
 
             captionSettingsConfig.classList.add('hidden');
@@ -821,7 +867,7 @@ Expected outcome is a human-readable continuous text consisting of several sente
 
                 if (shouldCaption) {
                     try {
-                        const caption = await generateCaption(item.file);
+                        const caption = await generateCaption(item.file, maxWords);
                         let final = mode === 'overwrite' ? caption : (item.tags ? item.tags + " " + caption : caption);
                         if (currentTriggerWord && !final.startsWith(currentTriggerWord)) final = currentTriggerWord + ", " + final;
                         item.tags = final;
@@ -988,7 +1034,7 @@ Expected outcome is a human-readable continuous text consisting of several sente
 
         async function autotagSingle(index) {
             try {
-                const tags = await generateCaption(dataset[index].file);
+                const tags = await generateTags(dataset[index].file);
                 dataset[index].tags = currentTriggerWord ? currentTriggerWord + ', ' + tags : tags;
                 dataset[index].type = 'tags';
                 renderTagsInCard(document.querySelector(`.tag-area-wrapper[data-index='${index}']`), index);
