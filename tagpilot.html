@@ -965,93 +965,96 @@ Limit the caption to ${maxWords} words or fewer.`;
             isBatchProcessing = false;
         }
 
-        async function startBatchTagging() {
-            const maxTags = getTagLimit();
-            const mode = document.querySelector('input[name="tag-mode"]:checked').value;
+        function shouldProcessBatchItem(item, mode) {
+            return mode === 'overwrite' || mode === 'append' || (mode === 'ignore' && (!item.tags || item.tags === currentTriggerWord));
+        }
 
-            tagSettingsConfig.classList.add('hidden');
-            tagSettingsProgress.classList.remove('hidden');
+        function updateBatchProgress(progressBar, progressText, processed, total) {
+            progressBar.style.width = `${(processed / total) * 100}%`;
+            progressText.textContent = `${processed} / ${total}`;
+        }
+
+        async function runBatchProcessing({ configPanel, progressPanel, progressBar, progressText, closeModal, completeMessage, processItem }) {
+            configPanel.classList.add('hidden');
+            progressPanel.classList.remove('hidden');
             isBatchProcessing = true;
 
             let processed = 0;
             const total = dataset.length;
-            tagProgressText.textContent = `0 / ${total}`;
-            tagProgressBar.style.width = '0%';
+            progressText.textContent = `0 / ${total}`;
+            progressBar.style.width = '0%';
 
             for (let i = 0; i < total && isBatchProcessing; i++) {
-                const item = dataset[i];
-                let shouldTag = mode === 'overwrite' || mode === 'append' || (mode === 'ignore' && (!item.tags || item.tags === currentTriggerWord));
-
-                if (shouldTag) {
-                    try {
-                        const newTags = await generateTags(item.file, maxTags);
-                        let tags = newTags.split(',').map(t => t.trim()).filter(Boolean);
-                        if (mode === 'append') {
-                            tags = [...new Set(item.tags.split(',').map(t => t.trim()).filter(Boolean).concat(tags))];
-                        }
-                        if (currentTriggerWord) {
-                            tags = tags.filter(t => t !== currentTriggerWord);
-                            tags.unshift(currentTriggerWord);
-                        }
-                        if (tags.length > maxTags) tags = tags.slice(0, maxTags);
-                        item.tags = tags.join(', ');
-                        item.type = 'tags';
-                        const wrapper = document.querySelector(`.tag-area-wrapper[data-index='${i}']`);
-                        if (wrapper) renderTagsInCard(wrapper, i);
-                    } catch (e) {
-                        console.error(e);
-                    }
+                try {
+                    await processItem(dataset[i], i);
+                } catch (e) {
+                    console.error(e);
                 }
                 processed++;
-                tagProgressBar.style.width = `${(processed / total) * 100}%`;
-                tagProgressText.textContent = `${processed} / ${total}`;
+                updateBatchProgress(progressBar, progressText, processed, total);
             }
 
             renderTagViewer();
             isBatchProcessing = false;
-            closeTagSettings();
-            showNotification("Tagging complete");
+            closeModal();
+            showNotification(completeMessage);
+        }
+
+        async function startBatchTagging() {
+            const maxTags = getTagLimit();
+            const mode = document.querySelector('input[name="tag-mode"]:checked').value;
+
+            await runBatchProcessing({
+                configPanel: tagSettingsConfig,
+                progressPanel: tagSettingsProgress,
+                progressBar: tagProgressBar,
+                progressText: tagProgressText,
+                closeModal: closeTagSettings,
+                completeMessage: "Tagging complete",
+                async processItem(item, index) {
+                    if (!shouldProcessBatchItem(item, mode)) return;
+
+                    const newTags = await generateTags(item.file, maxTags);
+                    let tags = newTags.split(',').map(t => t.trim()).filter(Boolean);
+                    if (mode === 'append') {
+                        tags = [...new Set(item.tags.split(',').map(t => t.trim()).filter(Boolean).concat(tags))];
+                    }
+                    if (currentTriggerWord) {
+                        tags = tags.filter(t => t !== currentTriggerWord);
+                        tags.unshift(currentTriggerWord);
+                    }
+                    if (tags.length > maxTags) tags = tags.slice(0, maxTags);
+                    item.tags = tags.join(', ');
+                    item.type = 'tags';
+                    const wrapper = document.querySelector(`.tag-area-wrapper[data-index='${index}']`);
+                    if (wrapper) renderTagsInCard(wrapper, index);
+                }
+            });
         }
 
         async function startBatchCaptioning() {
             const maxWords = getCaptionWordLimit();
             const mode = document.querySelector('input[name="caption-mode"]:checked').value;
 
-            captionSettingsConfig.classList.add('hidden');
-            captionSettingsProgress.classList.remove('hidden');
-            isBatchProcessing = true;
+            await runBatchProcessing({
+                configPanel: captionSettingsConfig,
+                progressPanel: captionSettingsProgress,
+                progressBar: captionProgressBar,
+                progressText: captionProgressText,
+                closeModal: closeCaptionSettings,
+                completeMessage: "Captioning complete",
+                async processItem(item, index) {
+                    if (!shouldProcessBatchItem(item, mode)) return;
 
-            let processed = 0;
-            const total = dataset.length;
-            captionProgressText.textContent = `0 / ${total}`;
-            captionProgressBar.style.width = '0%';
-
-            for (let i = 0; i < total && isBatchProcessing; i++) {
-                const item = dataset[i];
-                let shouldCaption = mode === 'overwrite' || mode === 'append' || (mode === 'ignore' && (!item.tags || item.tags === currentTriggerWord));
-
-                if (shouldCaption) {
-                    try {
-                        const caption = await generateCaption(item.file, maxWords);
-                        let final = mode === 'overwrite' ? caption : (item.tags ? item.tags + " " + caption : caption);
-                        if (currentTriggerWord && !final.startsWith(currentTriggerWord)) final = currentTriggerWord + ", " + final;
-                        item.tags = final;
-                        item.type = 'caption';
-                        const wrapper = document.querySelector(`.tag-area-wrapper[data-index='${i}']`);
-                        if (wrapper) renderTagsInCard(wrapper, i);
-                    } catch (e) {
-                        console.error(e);
-                    }
+                    const caption = await generateCaption(item.file, maxWords);
+                    let final = mode === 'overwrite' ? caption : (item.tags ? item.tags + " " + caption : caption);
+                    if (currentTriggerWord && !final.startsWith(currentTriggerWord)) final = currentTriggerWord + ", " + final;
+                    item.tags = final;
+                    item.type = 'caption';
+                    const wrapper = document.querySelector(`.tag-area-wrapper[data-index='${index}']`);
+                    if (wrapper) renderTagsInCard(wrapper, index);
                 }
-                processed++;
-                captionProgressBar.style.width = `${(processed / total) * 100}%`;
-                captionProgressText.textContent = `${processed} / ${total}`;
-            }
-
-            renderTagViewer();
-            isBatchProcessing = false;
-            closeCaptionSettings();
-            showNotification("Captioning complete");
+            });
         }
 
         function render() {

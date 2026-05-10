@@ -364,6 +364,14 @@ test('tag pill rendering does not interpolate tag text into innerHTML', async ()
     assert.doesNotMatch(html, /onclick="removeTagFromImage\(\$\{index\}, \$\{ti\}\)"/);
 });
 
+test('tag and caption batch flows share one runner', async () => {
+    const html = await readFile(new URL('../tagpilot.html', import.meta.url), 'utf8');
+
+    assert.match(html, /async function runBatchProcessing\(/);
+    assert.match(html, /async function startBatchTagging\(\)[\s\S]*runBatchProcessing\(/);
+    assert.match(html, /async function startBatchCaptioning\(\)[\s\S]*runBatchProcessing\(/);
+});
+
 test('preview modal can start cropping the previewed image', async () => {
     const html = await readFile(new URL('../tagpilot.html', import.meta.url), 'utf8');
     assert.match(html, /id="preview-crop"/);
