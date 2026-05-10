@@ -19,6 +19,7 @@
         .settings-icon-symbol { font-size: 22px; line-height: 1; }
         .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 2000; justify-content: center; align-items: center; }
         .modal-content { background: #1f2937; padding: 24px; border-radius: 12px; width: 320px; color: white; }
+        .settings-modal-content { width: min(960px, calc(100vw - 32px)); max-height: 90vh; overflow-y: auto; }
         .close { float: right; cursor: pointer; font-size: 24px; }
         .collapsible-content { transition: max-height 0.3s ease-out; max-height: 0; overflow: hidden; }
         .collapsible-content.expanded { max-height: 1000px; overflow-y: auto; }
@@ -34,31 +35,137 @@
         <span>Settings</span>
     </div>
 
+    <div id="lora-pilot-family-link" class="fixed bottom-3 right-3 z-[900] text-xs text-gray-500">
+        Part of <a href="https://github.com/vavo/lora-pilot" target="_blank" rel="noopener noreferrer" class="text-gray-400 hover:text-indigo-300 underline underline-offset-2">Lora Pilot</a> family
+    </div>
+
     <!-- Settings Modal -->
     <div id="settingsModal" class="modal">
-        <div class="modal-content">
+        <div class="modal-content settings-modal-content">
             <span class="close" id="closeSettings">×</span>
             <h2 class="text-2xl mb-4">Settings</h2>
-            <label class="block mb-2">Model:</label>
-            <select id="modelSelect" class="w-full bg-gray-700 p-2 rounded mb-4">
-                <option value="gemini">Gemini</option>
-                <option value="grok">Grok</option>
-                <option value="openai">OpenAI</option>
-                <option value="claude">Claude</option>
-                <option value="deepdanbooru">DeepDanbooru</option>
-                <option value="wd14">WD1.4 Tagger</option>
-            </select>
-            <label class="block mb-2 api-key-label">API Key for chosen model:</label>
-            <input type="password" id="apiKeyInput" class="w-full bg-gray-700 p-2 rounded mb-4">
-            <label class="block mb-2 dd-threshold-label" style="display:none;">DeepDanbooru Threshold (0-1):</label>
-            <input type="number" id="ddThreshold" min="0" max="1" step="0.05" value="0.5" class="w-full bg-gray-700 p-2 rounded mb-4" style="display:none;">
-            <label class="block mb-2 wd-apikey-label" style="display:none;">Replicate API Key (WD1.4):</label>
-            <input type="password" id="wdApiKeyInput" class="w-full bg-gray-700 p-2 rounded mb-4" style="display:none;">
-            <label class="block mb-2 wd-general-label" style="display:none;">WD1.4 General Threshold (0-1):</label>
-            <input type="number" id="wdGeneralThresh" min="0" max="1" step="0.05" value="0.35" class="w-full bg-gray-700 p-2 rounded mb-4" style="display:none;">
-            <label class="block mb-2 wd-char-label" style="display:none;">WD1.4 Character Threshold (0-1):</label>
-            <input type="number" id="wdCharThresh" min="0" max="1" step="0.05" value="0.85" class="w-full bg-gray-700 p-2 rounded mb-4" style="display:none;">
-            <button id="saveSettings" class="bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded">Save</button>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-5">
+                <section class="border border-gray-700 rounded-lg p-4 bg-gray-900/40">
+                    <h3 class="text-lg font-semibold text-white mb-3">Tagging Options</h3>
+                    <label class="block mb-2 text-sm text-gray-400">Default model</label>
+                    <select id="tag-default-model" class="w-full bg-gray-700 p-2 rounded mb-4">
+                        <option value="gemini">Gemini</option>
+                        <option value="grok">Grok</option>
+                        <option value="openai">OpenAI</option>
+                        <option value="claude">Claude</option>
+                        <option value="deepdanbooru">DeepDanbooru</option>
+                        <option value="wd14">WD1.4 Tagger</option>
+                    </select>
+                    <label class="block mb-2 text-sm text-gray-400">Max number of tags per image</label>
+                    <input type="number" id="setting-max-tags" value="30" min="1" max="100" class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-indigo-500 mb-4">
+                    <label class="block mb-2 text-sm text-gray-400">System prompt</label>
+                    <textarea id="tag-system-prompt" class="w-full h-40 bg-gray-900 border border-gray-600 rounded p-2 text-xs text-gray-300 focus:outline-none focus:border-indigo-500"></textarea>
+                </section>
+
+                <section class="border border-gray-700 rounded-lg p-4 bg-gray-900/40">
+                    <h3 class="text-lg font-semibold text-white mb-3">Captioning Options</h3>
+                    <label class="block mb-2 text-sm text-gray-400">Default model</label>
+                    <select id="caption-default-model" class="w-full bg-gray-700 p-2 rounded mb-4">
+                        <option value="gemini">Gemini</option>
+                        <option value="grok">Grok</option>
+                        <option value="openai">OpenAI</option>
+                        <option value="claude">Claude</option>
+                    </select>
+                    <label class="block mb-2 text-sm text-gray-400">Max caption length (words)</label>
+                    <input type="number" id="setting-max-caption-len" value="50" min="5" max="200" class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-purple-500 mb-4">
+                    <label class="block mb-2 text-sm text-gray-400">System prompt</label>
+                    <textarea id="caption-system-prompt" class="w-full h-40 bg-gray-900 border border-gray-600 rounded p-2 text-xs text-gray-300 focus:outline-none focus:border-purple-500"></textarea>
+                </section>
+            </div>
+
+            <section class="border border-gray-700 rounded-lg p-4 bg-gray-900/40 mb-5">
+                <h3 class="text-lg font-semibold text-white mb-3">Crop Options</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block mb-2 text-sm text-gray-400">Crop Size</label>
+                        <select id="crop-aspect-ratio" class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-indigo-500">
+                            <option value="freeform">Free form</option>
+                            <option value="1:1">1:1 Square</option>
+                            <option value="16:9">16:9 Landscape</option>
+                            <option value="3:2">3:2 Landscape</option>
+                            <option value="4:3">4:3 Landscape</option>
+                            <option value="21:9">21:9 Widescreen</option>
+                            <option value="9:16">9:16 Portrait</option>
+                            <option value="2:3">2:3 Portrait</option>
+                            <option value="3:4">3:4 Portrait</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block mb-2 text-sm text-gray-400">Crop width (px)</label>
+                        <input type="number" id="crop-width" value="1024" min="64" max="8192" step="64" class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-indigo-500">
+                    </div>
+                </div>
+            </section>
+
+            <section class="border border-gray-700 rounded-lg p-4 bg-gray-900/40 mb-5">
+                <h3 class="text-lg font-semibold text-white mb-3">Model API Keys</h3>
+                <div class="overflow-x-auto">
+                    <table id="model-api-key-table" class="w-full text-sm">
+                        <thead class="text-gray-400">
+                            <tr>
+                                <th class="text-left font-medium py-2 pr-4">Model</th>
+                                <th class="text-left font-medium py-2 pr-4">API key</th>
+                                <th class="text-left font-medium py-2">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-700">
+                            <tr>
+                                <td class="py-2 pr-4 text-gray-200">Gemini</td>
+                                <td class="py-2 pr-4"><input type="password" id="api-key-gemini" class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-indigo-500"></td>
+                                <td class="py-2 text-xs text-gray-500" data-key-status="gemini">Not saved</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 pr-4 text-gray-200">Grok</td>
+                                <td class="py-2 pr-4"><input type="password" id="api-key-grok" class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-indigo-500"></td>
+                                <td class="py-2 text-xs text-gray-500" data-key-status="grok">Not saved</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 pr-4 text-gray-200">OpenAI</td>
+                                <td class="py-2 pr-4"><input type="password" id="api-key-openai" class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-indigo-500"></td>
+                                <td class="py-2 text-xs text-gray-500" data-key-status="openai">Not saved</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 pr-4 text-gray-200">Claude</td>
+                                <td class="py-2 pr-4"><input type="password" id="api-key-claude" class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-indigo-500"></td>
+                                <td class="py-2 text-xs text-gray-500" data-key-status="claude">Not saved</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 pr-4 text-gray-200">DeepDanbooru</td>
+                                <td class="py-2 pr-4"><input type="text" id="api-key-deepdanbooru" disabled value="No key required" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-gray-500"></td>
+                                <td class="py-2 text-xs text-teal-400">Ready</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 pr-4 text-gray-200">WD1.4 Tagger</td>
+                                <td class="py-2 pr-4"><input type="password" id="api-key-wd14" class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-indigo-500"></td>
+                                <td class="py-2 text-xs text-gray-500" data-key-status="wd14">Not saved</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                    <div>
+                        <label class="block mb-2 text-sm text-gray-400">DeepDanbooru threshold</label>
+                        <input type="number" id="ddThreshold" min="0" max="1" step="0.05" value="0.5" class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block mb-2 text-sm text-gray-400">WD1.4 general threshold</label>
+                        <input type="number" id="wdGeneralThresh" min="0" max="1" step="0.05" value="0.35" class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block mb-2 text-sm text-gray-400">WD1.4 character threshold</label>
+                        <input type="number" id="wdCharThresh" min="0" max="1" step="0.05" value="0.85" class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-indigo-500">
+                    </div>
+                </div>
+            </section>
+
+            <div class="flex justify-end">
+                <button id="saveSettings" class="bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded">Save</button>
+            </div>
         </div>
     </div>
 
@@ -107,11 +214,11 @@
                             Clear Tags/Captions
                         </button>
                         <div class="relative flex items-center">
-                            <span class="absolute left-3 text-gray-400 text-sm">Trigger Word:</span>
+                            <span id="trigger-word-label" class="absolute left-3 text-gray-400 text-sm">Trigger Word:</span>
                             <input type="text" id="trigger-word-input" placeholder="e.g. ohwx man" class="bg-gray-700 border border-gray-600 rounded-md py-2 pl-24 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 w-40 sm:w-48">
                         </div>
                         <div class="relative flex items-center">
-                            <span class="absolute left-3 text-gray-400 text-sm">Dataset Name:</span>
+                            <span id="dataset-name-label" class="absolute left-3 text-gray-400 text-sm">Dataset Name:</span>
                             <input type="text" id="dataset-name-input" placeholder="filename" class="bg-gray-700 border border-gray-600 rounded-md py-2 pl-28 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 w-40 sm:w-48">
                         </div>
                         <button id="tag-all-button" class="bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded-lg transition-colors shadow-md">Tag All</button>
@@ -161,16 +268,6 @@
             <div class="bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6 border border-gray-700">
                 <div id="tag-settings-config">
                     <h3 class="text-xl font-bold text-white mb-4">Tagging Settings</h3>
-                    <div class="mb-4">
-                        <label class="block text-gray-400 text-sm mb-2">Max number of tags per image</label>
-                        <input type="number" id="setting-max-tags" value="30" min="1" max="100" class="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-indigo-500">
-                    </div>
-                    <div class="mb-6">
-                        <button id="toggle-tag-prompt-btn" class="text-sm text-indigo-400 hover:text-indigo-300 underline mb-2 focus:outline-none">
-                            Edit System Prompt
-                        </button>
-                        <textarea id="tag-system-prompt" class="hidden w-full h-32 bg-gray-900 border border-gray-600 rounded p-2 text-xs text-gray-300 focus:outline-none focus:border-indigo-500"></textarea>
-                    </div>
                     <div class="mb-6">
                         <label class="block text-gray-400 text-sm mb-2">If tags exist:</label>
                         <div class="space-y-2">
@@ -210,10 +307,6 @@
                 <div id="caption-settings-config">
                     <h3 class="text-xl font-bold text-white mb-4">Caption Settings</h3>
                     <div class="mb-4">
-                        <label class="block text-gray-400 text-sm mb-2">Max caption length (words)</label>
-                        <input type="number" id="setting-max-caption-len" value="50" min="5" max="200" class="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-purple-500">
-                    </div>
-                    <div class="mb-4">
                         <label class="block text-gray-400 text-sm mb-2">If text exists:</label>
                         <div class="space-y-2">
                             <label class="flex items-center space-x-3 cursor-pointer">
@@ -229,10 +322,6 @@
                                 <span class="text-gray-300">Overwrite (Replace)</span>
                             </label>
                         </div>
-                    </div>
-                    <div class="mb-6">
-                        <button id="toggle-caption-prompt-btn" class="text-sm text-purple-400 hover:text-purple-300 underline mb-2 focus:outline-none">Edit System Prompt</button>
-                        <textarea id="caption-system-prompt" class="hidden w-full h-32 bg-gray-900 border border-gray-600 rounded p-2 text-xs text-gray-300 focus:outline-none focus:border-purple-500"></textarea>
                     </div>
                     <div class="flex justify-end gap-3">
                         <button id="cancel-captioning-btn" class="px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded transition-colors">Cancel</button>
@@ -299,13 +388,35 @@ The final output MUST be a comma-separated list of tags. No comments, no 'Here i
 
 Expected outcome is a human-readable continuous text consisting of several sentences without the use of numbering or bullet points.`;
 
+        const TEXT_MODEL_IDS = ['gemini', 'grok', 'openai', 'claude'];
+        const TAG_MODEL_IDS = [...TEXT_MODEL_IDS, 'deepdanbooru', 'wd14'];
+        const API_KEY_MODEL_IDS = [...TEXT_MODEL_IDS, 'wd14'];
+        const CROP_ASPECT_RATIOS = {
+            '1:1': 1,
+            '16:9': 16 / 9,
+            '3:2': 3 / 2,
+            '4:3': 4 / 3,
+            '21:9': 21 / 9,
+            '9:16': 9 / 16,
+            '2:3': 2 / 3,
+            '3:4': 3 / 4
+        };
+
         // DOM elements
         const settingsIcon = document.getElementById('settings-icon');
         const settingsModal = document.getElementById('settingsModal');
         const closeSettingsBtn = document.getElementById('closeSettings');
-        const modelSelect = document.getElementById('modelSelect');
-        const apiKeyInput = document.getElementById('apiKeyInput');
-        const wdApiKeyInput = document.getElementById('wdApiKeyInput');
+        const tagDefaultModel = document.getElementById('tag-default-model');
+        const captionDefaultModel = document.getElementById('caption-default-model');
+        const cropAspectRatioSelect = document.getElementById('crop-aspect-ratio');
+        const cropWidthInput = document.getElementById('crop-width');
+        const apiKeyInputs = {
+            gemini: document.getElementById('api-key-gemini'),
+            grok: document.getElementById('api-key-grok'),
+            openai: document.getElementById('api-key-openai'),
+            claude: document.getElementById('api-key-claude'),
+            wd14: document.getElementById('api-key-wd14')
+        };
         const ddThreshold = document.getElementById('ddThreshold');
         const wdGeneralThresh = document.getElementById('wdGeneralThresh');
         const wdCharThresh = document.getElementById('wdCharThresh');
@@ -323,6 +434,8 @@ Expected outcome is a human-readable continuous text consisting of several sente
         const captionAllButton = document.getElementById('caption-all-button');
         const datasetNameInput = document.getElementById('dataset-name-input');
         const triggerWordInput = document.getElementById('trigger-word-input');
+        const datasetNameLabel = document.getElementById('dataset-name-label');
+        const triggerWordLabel = document.getElementById('trigger-word-label');
 
         const loader = document.getElementById('loader');
         const loaderText = document.getElementById('loader-text');
@@ -349,7 +462,6 @@ Expected outcome is a human-readable continuous text consisting of several sente
         const settingMaxTags = document.getElementById('setting-max-tags');
         const tagProgressBar = document.getElementById('tag-progress-bar');
         const tagProgressText = document.getElementById('tag-progress-text');
-        const toggleTagPromptBtn = document.getElementById('toggle-tag-prompt-btn');
         const tagSystemPrompt = document.getElementById('tag-system-prompt');
 
         const captionSettingsModal = document.getElementById('caption-settings-modal');
@@ -361,7 +473,6 @@ Expected outcome is a human-readable continuous text consisting of several sente
         const settingMaxCaptionLen = document.getElementById('setting-max-caption-len');
         const captionProgressBar = document.getElementById('caption-progress-bar');
         const captionProgressText = document.getElementById('caption-progress-text');
-        const toggleCaptionPromptBtn = document.getElementById('toggle-caption-prompt-btn');
         const captionSystemPrompt = document.getElementById('caption-system-prompt');
 
         const cropModal = document.getElementById('crop-modal');
@@ -369,14 +480,13 @@ Expected outcome is a human-readable continuous text consisting of several sente
         const cropSaveButton = document.getElementById('crop-save');
         const cropCancelButton = document.getElementById('crop-cancel');
 
-        tagSystemPrompt.value = DEFAULT_TAG_PROMPT;
-        captionSystemPrompt.value = DEFAULT_CAPTION_PROMPT;
+        loadSettingsValues();
 
         // Event listeners
         settingsIcon.addEventListener('click', openSettings);
         closeSettingsBtn.addEventListener('click', closeSettings);
         saveSettingsBtn.addEventListener('click', saveSettings);
-        modelSelect.addEventListener('change', updateSettingsFields);
+        Object.values(apiKeyInputs).forEach(input => input.addEventListener('input', updateSettingsFields));
 
         imageUpload.addEventListener('change', handleImageUpload);
         zipUpload.addEventListener('change', handleZipUpload);
@@ -388,14 +498,14 @@ Expected outcome is a human-readable continuous text consisting of several sente
         startTaggingBtn.addEventListener('click', startBatchTagging);
         cancelTaggingBtn.addEventListener('click', closeTagSettings);
         stopTaggingBtn.addEventListener('click', stopBatchProcessing);
-        toggleTagPromptBtn.addEventListener('click', () => tagSystemPrompt.classList.toggle('hidden'));
         startCaptioningBtn.addEventListener('click', startBatchCaptioning);
         cancelCaptioningBtn.addEventListener('click', closeCaptionSettings);
         stopCaptioningBtn.addEventListener('click', stopBatchProcessing);
-        toggleCaptionPromptBtn.addEventListener('click', () => captionSystemPrompt.classList.toggle('hidden'));
         previewClose.addEventListener('click', hidePreview);
         previewCropButton.addEventListener('click', cropPreviewImage);
-        triggerWordInput.addEventListener('input', handleTriggerWordChange);
+        triggerWordInput.addEventListener('input', handleTriggerWordInput);
+        datasetNameInput.addEventListener('input', updateInputPrefixLabels);
+        updateInputPrefixLabels();
         tagViewerHeader.addEventListener('click', () => {
             tagViewerContent.classList.toggle('expanded');
             tagViewerArrow.classList.toggle('expanded');
@@ -415,29 +525,71 @@ Expected outcome is a human-readable continuous text consisting of several sente
         cropCancelButton.addEventListener('click', cancelCrop);
 
         // Settings functions
-        function updateSettingsFields() {
-            const model = modelSelect.value;
-            const isLLM = isTextProvider(model);
-            const isDD = model === 'deepdanbooru';
-            const isWD = model === 'wd14';
+        function isTagModel(model) {
+            return TAG_MODEL_IDS.includes(model);
+        }
 
-            if (isLLM) {
-                apiKeyInput.value = localStorage.getItem(model + 'ApiKey') || '';
-            }
-            document.querySelectorAll('.api-key-label, #apiKeyInput').forEach(el => el.style.display = isLLM ? 'block' : 'none');
-            document.querySelectorAll('.dd-threshold-label, #ddThreshold').forEach(el => el.style.display = isDD ? 'block' : 'none');
-            document.querySelectorAll('.wd-apikey-label, #wdApiKeyInput, .wd-general-label, #wdGeneralThresh, .wd-char-label, #wdCharThresh').forEach(el => el.style.display = isWD ? 'block' : 'none');
+        function isCaptionModel(model) {
+            return TEXT_MODEL_IDS.includes(model);
+        }
+
+        function getSavedTagModel() {
+            const saved = localStorage.getItem('tagModel');
+            if (isTagModel(saved)) return saved;
+            const legacy = localStorage.getItem('selectedModel');
+            if (isTagModel(legacy)) return legacy;
+            return 'gemini';
+        }
+
+        function getSavedCaptionModel() {
+            const saved = localStorage.getItem('captionModel');
+            if (isCaptionModel(saved)) return saved;
+            const legacy = localStorage.getItem('selectedModel');
+            if (isCaptionModel(legacy)) return legacy;
+            return 'gemini';
+        }
+
+        function getSavedCropAspectRatio() {
+            const saved = localStorage.getItem('cropAspectRatio') || 'freeform';
+            return saved === 'freeform' || Object.prototype.hasOwnProperty.call(CROP_ASPECT_RATIOS, saved) ? saved : 'freeform';
+        }
+
+        function getProviderKeyStorageName(model) {
+            return model === 'wd14' ? 'wd14ApiKey' : `${model}ApiKey`;
+        }
+
+        function updateSettingsFields() {
+            API_KEY_MODEL_IDS.forEach(model => {
+                const status = document.querySelector(`[data-key-status='${model}']`);
+                if (!status) return;
+                const hasKey = Boolean(apiKeyInputs[model]?.value.trim());
+                status.textContent = hasKey ? 'Saved' : 'Not saved';
+                status.classList.toggle('text-teal-400', hasKey);
+                status.classList.toggle('text-gray-500', !hasKey);
+            });
+        }
+
+        function loadSettingsValues() {
+            tagDefaultModel.value = getSavedTagModel();
+            captionDefaultModel.value = getSavedCaptionModel();
+            settingMaxTags.value = localStorage.getItem('settingMaxTags') || '30';
+            settingMaxCaptionLen.value = localStorage.getItem('settingMaxCaptionLen') || '50';
+            cropAspectRatioSelect.value = getSavedCropAspectRatio();
+            cropWidthInput.value = localStorage.getItem('cropWidth') || '1024';
+            tagSystemPrompt.value = localStorage.getItem('tagSystemPrompt') || DEFAULT_TAG_PROMPT;
+            captionSystemPrompt.value = localStorage.getItem('captionSystemPrompt') || DEFAULT_CAPTION_PROMPT;
+            ddThreshold.value = localStorage.getItem('ddThreshold') || '0.5';
+            wdGeneralThresh.value = localStorage.getItem('wdGeneralThresh') || '0.35';
+            wdCharThresh.value = localStorage.getItem('wdCharThresh') || '0.85';
+            API_KEY_MODEL_IDS.forEach(model => {
+                apiKeyInputs[model].value = localStorage.getItem(getProviderKeyStorageName(model)) || '';
+            });
+            updateSettingsFields();
         }
 
         function openSettings() {
             settingsModal.style.display = 'flex';
-            modelSelect.value = localStorage.getItem('selectedModel') || 'gemini';
-            apiKeyInput.value = localStorage.getItem(modelSelect.value + 'ApiKey') || '';
-            wdApiKeyInput.value = localStorage.getItem('wd14ApiKey') || '';
-            ddThreshold.value = localStorage.getItem('ddThreshold') || '0.5';
-            wdGeneralThresh.value = localStorage.getItem('wdGeneralThresh') || '0.35';
-            wdCharThresh.value = localStorage.getItem('wdCharThresh') || '0.85';
-            updateSettingsFields();
+            loadSettingsValues();
         }
 
         function closeSettings() {
@@ -445,20 +597,31 @@ Expected outcome is a human-readable continuous text consisting of several sente
         }
 
         function saveSettings() {
-            const model = modelSelect.value;
-            localStorage.setItem('selectedModel', model);
-            if (isTextProvider(model)) localStorage.setItem(model + 'ApiKey', apiKeyInput.value.trim());
-            if (model === 'wd14') localStorage.setItem('wd14ApiKey', wdApiKeyInput.value.trim());
+            localStorage.setItem('tagModel', tagDefaultModel.value);
+            localStorage.setItem('captionModel', captionDefaultModel.value);
+            localStorage.setItem('selectedModel', tagDefaultModel.value);
+            API_KEY_MODEL_IDS.forEach(model => {
+                localStorage.setItem(getProviderKeyStorageName(model), apiKeyInputs[model].value.trim());
+            });
+            localStorage.setItem('settingMaxTags', settingMaxTags.value);
+            localStorage.setItem('settingMaxCaptionLen', settingMaxCaptionLen.value);
+            localStorage.setItem('cropAspectRatio', cropAspectRatioSelect.value);
+            localStorage.setItem('cropWidth', String(getCropWidth()));
+            localStorage.setItem('tagSystemPrompt', tagSystemPrompt.value.trim());
+            localStorage.setItem('captionSystemPrompt', captionSystemPrompt.value.trim());
             localStorage.setItem('ddThreshold', ddThreshold.value);
             localStorage.setItem('wdGeneralThresh', wdGeneralThresh.value);
             localStorage.setItem('wdCharThresh', wdCharThresh.value);
+            updateSettingsFields();
             closeSettings();
             showNotification('Settings saved');
         }
 
-        function getModel() { return localStorage.getItem('selectedModel') || 'gemini'; }
-        function getApiKey() { return localStorage.getItem(getModel() + 'ApiKey') || ''; }
-        function getWDKey() { return localStorage.getItem('wd14ApiKey') || ''; }
+        function getTagModel() { return isTagModel(tagDefaultModel.value) ? tagDefaultModel.value : getSavedTagModel(); }
+        function getCaptionModel() { return isCaptionModel(captionDefaultModel.value) ? captionDefaultModel.value : getSavedCaptionModel(); }
+        function getModel() { return getTagModel(); }
+        function getApiKey(model = getModel()) { return localStorage.getItem(getProviderKeyStorageName(model)) || ''; }
+        function getWDKey() { return getApiKey('wd14'); }
 
         function getIntegerSetting(input, fallback, min, max) {
             const parsed = parseInt(input.value, 10);
@@ -472,6 +635,29 @@ Expected outcome is a human-readable continuous text consisting of several sente
 
         function getCaptionWordLimit() {
             return getIntegerSetting(settingMaxCaptionLen, 50, 5, 200);
+        }
+
+        function getCropWidth() {
+            return getIntegerSetting(cropWidthInput, 1024, 64, 8192);
+        }
+
+        function getCropAspectRatio() {
+            return CROP_ASPECT_RATIOS[cropAspectRatioSelect.value] || NaN;
+        }
+
+        function getCropCanvasOptions() {
+            const width = getCropWidth();
+            const aspectRatio = getCropAspectRatio();
+            if (Number.isFinite(aspectRatio)) {
+                return { width, height: Math.round(width / aspectRatio) };
+            }
+            if (cropper && typeof cropper.getData === 'function') {
+                const cropData = cropper.getData();
+                if (cropData?.width > 0 && cropData?.height > 0) {
+                    return { width, height: Math.round(width * cropData.height / cropData.width) };
+                }
+            }
+            return { width };
         }
 
         function getPromptValue(input, fallback) {
@@ -660,8 +846,7 @@ Limit the caption to ${maxWords} words or fewer.`;
             });
         }
 
-        async function generateImageText(imageFile, promptText) {
-            const model = getModel();
+        async function generateImageText(imageFile, promptText, model = getModel()) {
             const base64 = await fileToBase64(imageFile);
             const imageData = base64.split(',')[1];
             const imageMimeType = getImageMimeType(imageFile);
@@ -701,7 +886,7 @@ Limit the caption to ${maxWords} words or fewer.`;
 
             const provider = getTextProvider(model);
             const providerName = provider.name;
-            const apiKey = getApiKey();
+            const apiKey = getApiKey(model);
             if (!apiKey) throw new Error('API key missing');
 
             const responseText = await provider.request({ apiKey, promptText, base64, imageData, imageMimeType });
@@ -709,12 +894,12 @@ Limit the caption to ${maxWords} words or fewer.`;
             return responseText.trim();
         }
 
-        async function generateTags(imageFile, maxTags = getTagLimit()) {
-            return generateImageText(imageFile, buildTagPrompt(maxTags));
+        async function generateTags(imageFile, maxTags = getTagLimit(), model = getTagModel()) {
+            return generateImageText(imageFile, buildTagPrompt(maxTags), model);
         }
 
-        async function generateCaption(imageFile, maxWords = getCaptionWordLimit()) {
-            const caption = await generateImageText(imageFile, buildCaptionPrompt(maxWords));
+        async function generateCaption(imageFile, maxWords = getCaptionWordLimit(), model = getCaptionModel()) {
+            const caption = await generateImageText(imageFile, buildCaptionPrompt(maxWords), model);
             return trimCaptionToWordLimit(caption, maxWords);
         }
 
@@ -956,6 +1141,7 @@ Limit the caption to ${maxWords} words or fewer.`;
             datasetNameInput.value = '';
             triggerWordInput.value = '';
             currentTriggerWord = '';
+            updateInputPrefixLabels();
             render();
         }
 
@@ -986,6 +1172,23 @@ Limit the caption to ${maxWords} words or fewer.`;
             a.click();
             setTimeout(() => revokeTransientObjectUrl(url), 0);
             showNotification("Exported ZIP");
+        }
+
+        function updateInputPrefixLabel(input, label) {
+            const hasValue = Boolean(input.value.trim());
+            label.style.visibility = hasValue ? 'hidden' : '';
+            label.style.opacity = hasValue ? '0' : '';
+            input.style.paddingLeft = hasValue ? '0.75rem' : '';
+        }
+
+        function updateInputPrefixLabels() {
+            updateInputPrefixLabel(triggerWordInput, triggerWordLabel);
+            updateInputPrefixLabel(datasetNameInput, datasetNameLabel);
+        }
+
+        function handleTriggerWordInput(e) {
+            updateInputPrefixLabels();
+            handleTriggerWordChange(e);
         }
 
         function handleTriggerWordChange(e) {
@@ -1384,12 +1587,12 @@ Limit the caption to ${maxWords} words or fewer.`;
             currentCropItemId = itemId;
             cropImage.src = getFileObjectUrl(item.file);
             cropModal.style.display = 'flex';
-            cropper = new Cropper(cropImage, { aspectRatio: NaN, viewMode: 1 });
+            cropper = new Cropper(cropImage, { aspectRatio: getCropAspectRatio(), viewMode: 1 });
         }
 
         async function saveCrop() {
             if (!cropper) return;
-            const canvas = cropper.getCroppedCanvas();
+            const canvas = cropper.getCroppedCanvas(getCropCanvasOptions());
             const blob = await new Promise(r => canvas.toBlob(r));
             const item = findDatasetItemById(currentCropItemId);
             if (!item) {

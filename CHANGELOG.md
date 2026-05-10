@@ -1,5 +1,25 @@
 # Changelog
 
+## v2.0 - 2026-05-10
+
+- Reworked Settings into dedicated **Tagging Options** and **Captioning Options** sections.
+- Added separate default models for tagging and captioning.
+- Moved max tags, max caption length, and editable system prompts into Settings instead of hiding them in the batch modals.
+- Added **Crop Options** with free-form mode, common aspect-ratio presets, and configurable crop output width.
+- Crops now use the selected aspect ratio and resize output from the saved crop width.
+- Replaced the single model/API-key picker with a provider API key table for Gemini, Grok, OpenAI, Claude, DeepDanbooru, and WD1.4.
+- Added visible key status per provider so saved-key state is obvious.
+- Hid the inline trigger-word and dataset-name labels while users are typing, because text overlap is not a feature.
+- Added a bottom-right **Part of Lora Pilot family** link to the LoRA Pilot GitHub repository.
+- Kept TagPilot as a single static `tagpilot.html` file with no install/build step. Miracles happen, occasionally.
+- Refactored provider calls into a provider registry.
+- Rendered tag pills without interpolating tag text into HTML.
+- Shared the batch processing runner between tagging and captioning.
+- Added object URL lifecycle cleanup for previews, crops, exports, removals, and resets.
+- Switched image-card actions to stable item IDs instead of shifting array indexes.
+- Extracted shared tag parsing, formatting, merge, and trigger-word helpers.
+- Expanded the no-install Node regression harness to cover settings, provider routing, refactor seams, and UI-state behavior.
+
 ## v1.6 - 2026-05-08
 
 - Added Claude support through Anthropic's browser-direct Messages API using `claude-sonnet-4-5-20250929`.

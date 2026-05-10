@@ -15,8 +15,8 @@ function makeElement(id) {
         },
         addEventListener() {},
         appendChild() {},
-        querySelector() {
-            return null;
+        querySelector(selector) {
+            return makeElement(`${id}-${selector}`);
         },
         innerHTML: '',
         textContent: '',
@@ -29,19 +29,22 @@ async function loadTagPilot({ selectedModel = 'openai', initialStore = {}, fetch
     assert.ok(script, 'inline script should exist');
 
     const elements = new Map();
+    const cropperInstances = [];
+    const croppedCanvasRequests = [];
     const getElement = (id) => {
         if (!elements.has(id)) elements.set(id, makeElement(id));
         return elements.get(id);
     };
 
     const fetchCalls = [];
-    const localStore = new Map([
-        ['selectedModel', selectedModel],
-        ['geminiApiKey', initialStore.geminiApiKey || 'test-key'],
-        ['grokApiKey', initialStore.grokApiKey || 'test-key'],
-        ['openaiApiKey', initialStore.openaiApiKey || 'test-key'],
-        ['claudeApiKey', initialStore.claudeApiKey || 'test-key'],
-    ]);
+    const localStore = new Map(Object.entries({
+        selectedModel,
+        geminiApiKey: initialStore.geminiApiKey || 'test-key',
+        grokApiKey: initialStore.grokApiKey || 'test-key',
+        openaiApiKey: initialStore.openaiApiKey || 'test-key',
+        claudeApiKey: initialStore.claudeApiKey || 'test-key',
+        ...initialStore,
+    }));
 
     const context = {
         console,
@@ -57,7 +60,30 @@ async function loadTagPilot({ selectedModel = 'openai', initialStore = {}, fetch
             }
         },
         Cropper: class {
+            constructor(image, options) {
+                this.image = image;
+                this.options = options;
+                cropperInstances.push(this);
+            }
+            getData() {
+                return { width: 400, height: 300 };
+            }
+            getCroppedCanvas(options = {}) {
+                croppedCanvasRequests.push(options);
+                return {
+                    toBlob(callback) {
+                        callback({ type: 'image/png' });
+                    },
+                };
+            }
             destroy() {}
+        },
+        File: class {
+            constructor(parts, name, options = {}) {
+                this.parts = parts;
+                this.name = name;
+                this.type = options.type || '';
+            }
         },
         document: {
             getElementById: getElement,
@@ -136,6 +162,7 @@ async function loadTagPilot({ selectedModel = 'openai', initialStore = {}, fetch
         confirm: () => true,
         URL: {
             createObjectURL: () => 'blob:mock',
+            revokeObjectURL() {},
         },
     };
 
@@ -144,7 +171,12 @@ async function loadTagPilot({ selectedModel = 'openai', initialStore = {}, fetch
 globalThis.__tagpilotTest = {
     openSettings,
     updateSettingsFields,
+    saveSettings,
     generateTags,
+    getTagModel,
+    getCaptionModel,
+    openCrop,
+    saveCrop,
     getTextProviderIds,
     autotagSingle,
     captionSingle,
@@ -158,11 +190,12 @@ globalThis.__tagpilotTest = {
     withTriggerWord,
     withoutTriggerWord,
     isBlankOrTriggerOnly,
+    updateInputPrefixLabels: typeof updateInputPrefixLabels === 'function' ? updateInputPrefixLabels : null,
     setDataset(value) { dataset = value; ensureDatasetItemIds(); },
     getDataset() { return dataset; },
 };`, context);
 
-    return { context, elements, fetchCalls, localStore };
+    return { context, elements, fetchCalls, localStore, cropperInstances, croppedCanvasRequests };
 }
 
 function deferred() {
@@ -267,28 +300,99 @@ test('LLM providers are registered in one provider map', async () => {
     assert.deepEqual(Array.from(context.__tagpilotTest.getTextProviderIds()), ['gemini', 'grok', 'openai', 'claude']);
 });
 
-test('settings model switch loads the matching provider API key', async () => {
+test('settings modal exposes tagging options, captioning options, and provider key table', async () => {
+    const html = await readFile(new URL('../tagpilot.html', import.meta.url), 'utf8');
+
+    assert.match(html, /Tagging Options/);
+    assert.match(html, /Captioning Options/);
+    assert.match(html, /Crop Options/);
+    assert.match(html, /id="tag-default-model"/);
+    assert.match(html, /id="caption-default-model"/);
+    assert.match(html, /id="crop-aspect-ratio"/);
+    assert.match(html, /id="crop-width"/);
+    assert.match(html, />Free form</);
+    assert.match(html, />1:1 Square</);
+    assert.match(html, />16:9 Landscape</);
+    assert.match(html, />3:2 Landscape</);
+    assert.match(html, />4:3 Landscape</);
+    assert.match(html, />21:9 Widescreen</);
+    assert.match(html, />9:16 Portrait</);
+    assert.match(html, />2:3 Portrait</);
+    assert.match(html, />3:4 Portrait</);
+    assert.match(html, /id="model-api-key-table"/);
+    assert.match(html, /id="api-key-gemini"/);
+    assert.match(html, /id="api-key-grok"/);
+    assert.match(html, /id="api-key-openai"/);
+    assert.match(html, /id="api-key-claude"/);
+    assert.match(html, /id="api-key-wd14"/);
+    assert.doesNotMatch(html, /id="modelSelect"/);
+    assert.doesNotMatch(html, /id="apiKeyInput"/);
+});
+
+test('settings key table loads saved provider API keys', async () => {
     const { context, elements } = await loadTagPilot({
         selectedModel: 'gemini',
         initialStore: {
             geminiApiKey: 'gemini-key',
+            grokApiKey: 'grok-key',
             openaiApiKey: 'openai-key',
             claudeApiKey: 'claude-key',
+            wd14ApiKey: 'wd14-key',
         },
     });
 
     context.__tagpilotTest.openSettings();
-    assert.equal(elements.get('apiKeyInput').value, 'gemini-key');
 
-    elements.get('modelSelect').value = 'openai';
-    context.__tagpilotTest.updateSettingsFields();
+    assert.equal(elements.get('api-key-gemini').value, 'gemini-key');
+    assert.equal(elements.get('api-key-grok').value, 'grok-key');
+    assert.equal(elements.get('api-key-openai').value, 'openai-key');
+    assert.equal(elements.get('api-key-claude').value, 'claude-key');
+    assert.equal(elements.get('api-key-wd14').value, 'wd14-key');
+});
 
-    assert.equal(elements.get('apiKeyInput').value, 'openai-key');
+test('settings can save separate default models for tagging and captioning', async () => {
+    const { context, elements, fetchCalls, localStore } = await loadTagPilot({ selectedModel: 'gemini' });
 
-    elements.get('modelSelect').value = 'claude';
-    context.__tagpilotTest.updateSettingsFields();
+    context.__tagpilotTest.openSettings();
+    elements.get('tag-default-model').value = 'openai';
+    elements.get('caption-default-model').value = 'claude';
+    elements.get('setting-max-tags').value = '7';
+    elements.get('setting-max-caption-len').value = '6';
+    elements.get('tag-system-prompt').value = 'TAG DEFAULT PROMPT';
+    elements.get('caption-system-prompt').value = 'CAPTION DEFAULT PROMPT';
+    elements.get('api-key-openai').value = 'openai-table-key';
+    elements.get('api-key-claude').value = 'claude-table-key';
 
-    assert.equal(elements.get('apiKeyInput').value, 'claude-key');
+    context.__tagpilotTest.saveSettings();
+
+    assert.equal(localStore.get('tagModel'), 'openai');
+    assert.equal(localStore.get('captionModel'), 'claude');
+    assert.equal(context.__tagpilotTest.getTagModel(), 'openai');
+    assert.equal(context.__tagpilotTest.getCaptionModel(), 'claude');
+
+    context.__tagpilotTest.setDataset([{ file: { name: 'image.png', type: 'image/png' }, tags: '', type: 'tags' }]);
+    await context.__tagpilotTest.startBatchTagging();
+    await context.__tagpilotTest.startBatchCaptioning();
+
+    assert.equal(fetchCalls[0].url, 'https://api.openai.com/v1/responses');
+    assert.equal(fetchCalls[0].headers.Authorization, 'Bearer openai-table-key');
+    assert.equal(JSON.parse(fetchCalls[0].body).input[0].content[0].text.includes('TAG DEFAULT PROMPT'), true);
+    assert.equal(fetchCalls[1].url, 'https://api.anthropic.com/v1/messages');
+    assert.equal(fetchCalls[1].headers['x-api-key'], 'claude-table-key');
+    assert.equal(JSON.parse(fetchCalls[1].body).messages[0].content[1].text.includes('CAPTION DEFAULT PROMPT'), true);
+});
+
+test('settings can save crop size ratio and output width', async () => {
+    const { context, elements, localStore } = await loadTagPilot();
+
+    context.__tagpilotTest.openSettings();
+    elements.get('crop-aspect-ratio').value = '21:9';
+    elements.get('crop-width').value = '1536';
+
+    context.__tagpilotTest.saveSettings();
+
+    assert.equal(localStore.get('cropAspectRatio'), '21:9');
+    assert.equal(localStore.get('cropWidth'), '1536');
 });
 
 test('OpenAI HTTP 401 returns a useful provider error', async () => {
@@ -364,6 +468,42 @@ test('settings launcher is labeled and positioned at the top left', async () => 
     assert.match(html, /id="settings-icon"[^>]*>[\s\S]*Settings[\s\S]*<\/div>/);
 });
 
+test('Lora Pilot family link is fixed at the bottom right', async () => {
+    const html = await readFile(new URL('../tagpilot.html', import.meta.url), 'utf8');
+
+    assert.match(html, /id="lora-pilot-family-link"/);
+    assert.match(html, /Part of\s*<a[^>]*>Lora Pilot<\/a>\s*family/);
+    assert.match(html, /href="https:\/\/github\.com\/vavo\/lora-pilot"/);
+    assert.match(html, /class="[^"]*fixed[^"]*bottom-3[^"]*right-3/);
+});
+
+test('trigger word and dataset name labels hide while values are entered', async () => {
+    const { context, elements } = await loadTagPilot();
+    const updateInputPrefixLabels = context.__tagpilotTest.updateInputPrefixLabels;
+
+    assert.equal(typeof updateInputPrefixLabels, 'function');
+
+    elements.get('trigger-word-input').value = 'ohwx';
+    elements.get('dataset-name-input').value = 'portraits';
+
+    updateInputPrefixLabels();
+
+    assert.equal(elements.get('trigger-word-label').style.visibility, 'hidden');
+    assert.equal(elements.get('dataset-name-label').style.visibility, 'hidden');
+    assert.equal(elements.get('trigger-word-input').style.paddingLeft, '0.75rem');
+    assert.equal(elements.get('dataset-name-input').style.paddingLeft, '0.75rem');
+
+    elements.get('trigger-word-input').value = '';
+    elements.get('dataset-name-input').value = '';
+
+    updateInputPrefixLabels();
+
+    assert.equal(elements.get('trigger-word-label').style.visibility, '');
+    assert.equal(elements.get('dataset-name-label').style.visibility, '');
+    assert.equal(elements.get('trigger-word-input').style.paddingLeft, '');
+    assert.equal(elements.get('dataset-name-input').style.paddingLeft, '');
+});
+
 test('tag pill rendering does not interpolate tag text into innerHTML', async () => {
     const html = await readFile(new URL('../tagpilot.html', import.meta.url), 'utf8');
 
@@ -433,4 +573,26 @@ test('preview modal can start cropping the previewed image', async () => {
     assert.equal(elements.get('preview-modal').style.display, 'none');
     assert.equal(elements.get('crop-modal').style.display, 'flex');
     assert.equal(elements.get('crop-image').src, 'blob:mock');
+});
+
+test('crop uses the selected ratio and output width', async () => {
+    const { context, cropperInstances, croppedCanvasRequests } = await loadTagPilot({
+        initialStore: {
+            cropAspectRatio: '16:9',
+            cropWidth: '1344',
+        },
+    });
+    context.__tagpilotTest.setDataset([{ file: { name: 'image.png', type: 'image/png' }, tags: '', type: 'tags' }]);
+    const itemId = context.__tagpilotTest.getDataset()[0].id;
+
+    context.__tagpilotTest.openCrop(itemId);
+
+    assert.equal(cropperInstances[0].options.aspectRatio, 16 / 9);
+
+    await context.__tagpilotTest.saveCrop();
+
+    assert.equal(croppedCanvasRequests[0].width, 1344);
+    assert.equal(croppedCanvasRequests[0].height, 756);
+    assert.equal(context.__tagpilotTest.getDataset()[0].file.name, 'image.png');
+    assert.equal(context.__tagpilotTest.getDataset()[0].file.type, 'image/png');
 });
