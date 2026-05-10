@@ -85,6 +85,14 @@ async function loadTagPilot({ selectedModel = 'openai', initialStore = {}, fetch
                 this.type = options.type || '';
             }
         },
+        FormData: class {
+            constructor() {
+                this.entries = [];
+            }
+            append(name, value, filename) {
+                this.entries.push({ name, value, filename });
+            }
+        },
         document: {
             getElementById: getElement,
             createElement: () => makeElement('created'),
@@ -393,6 +401,62 @@ test('settings can save crop size ratio and output width', async () => {
 
     assert.equal(localStore.get('cropAspectRatio'), '21:9');
     assert.equal(localStore.get('cropWidth'), '1536');
+});
+
+test('DeepDanbooru uses the Hugging Face Gradio API and parses returned tags', async () => {
+    const { context, fetchCalls } = await loadTagPilot({
+        initialStore: {
+            tagModel: 'deepdanbooru',
+            ddThreshold: '0.6',
+        },
+        fetchHandler: async (url) => {
+            if (url.endsWith('/upload')) {
+                return {
+                    ok: true,
+                    status: 200,
+                    async json() {
+                        return ['/tmp/gradio/uploaded/image.png'];
+                    },
+                };
+            }
+            if (url.endsWith('/call/v2/predict')) {
+                return {
+                    ok: true,
+                    status: 200,
+                    async json() {
+                        return { event_id: 'event-123' };
+                    },
+                };
+            }
+            if (url.endsWith('/call/predict/event-123')) {
+                return {
+                    ok: true,
+                    status: 200,
+                    async text() {
+                        return 'event: complete\ndata: [{"label":"solo","confidences":[{"label":"solo","confidence":0.9},{"label":"low_score","confidence":0.4}]},{"solo":0.9,"low_score":0.4},"solo, low_score"]\n\n';
+                    },
+                };
+            }
+            throw new Error(`Unexpected URL: ${url}`);
+        },
+    });
+
+    const tags = await context.__tagpilotTest.generateTags({ name: 'image.png', type: 'image/png' });
+
+    assert.equal(tags, 'solo');
+    assert.equal(fetchCalls[0].url, 'https://hysts-deepdanbooru.hf.space/gradio_api/upload');
+    assert.equal(fetchCalls[0].method, 'POST');
+    assert.equal(fetchCalls[0].body.entries[0].name, 'files');
+    assert.equal(fetchCalls[0].body.entries[0].filename, 'image.png');
+    assert.equal(fetchCalls[1].url, 'https://hysts-deepdanbooru.hf.space/gradio_api/call/v2/predict');
+    assert.equal(fetchCalls[1].method, 'POST');
+    const predictBody = JSON.parse(fetchCalls[1].body);
+    assert.equal(predictBody.image.path, '/tmp/gradio/uploaded/image.png');
+    assert.equal(predictBody.image.orig_name, 'image.png');
+    assert.equal(predictBody.image.mime_type, 'image/png');
+    assert.equal(predictBody.image.meta._type, 'gradio.FileData');
+    assert.equal(predictBody.score_threshold, 0.6);
+    assert.equal(fetchCalls[2].url, 'https://hysts-deepdanbooru.hf.space/gradio_api/call/predict/event-123');
 });
 
 test('OpenAI HTTP 401 returns a useful provider error', async () => {

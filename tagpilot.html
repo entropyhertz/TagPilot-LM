@@ -391,6 +391,7 @@ Expected outcome is a human-readable continuous text consisting of several sente
         const TEXT_MODEL_IDS = ['gemini', 'grok', 'openai', 'claude'];
         const TAG_MODEL_IDS = [...TEXT_MODEL_IDS, 'deepdanbooru', 'wd14'];
         const API_KEY_MODEL_IDS = [...TEXT_MODEL_IDS, 'wd14'];
+        const DEEPDANBOORU_API_BASE = 'https://hysts-deepdanbooru.hf.space/gradio_api';
         const CROP_ASPECT_RATIOS = {
             '1:1': 1,
             '16:9': 16 / 9,
@@ -720,6 +721,10 @@ Limit the caption to ${maxWords} words or fewer.`;
             return 'image/png';
         }
 
+        function getFileUploadName(file) {
+            return file?.name || 'image.png';
+        }
+
         function createResponsesProvider(name, endpoint, modelName) {
             return {
                 name,
@@ -838,6 +843,93 @@ Limit the caption to ${maxWords} words or fewer.`;
             return data;
         }
 
+        function getDeepDanbooruThreshold() {
+            const threshold = parseFloat(localStorage.getItem('ddThreshold') || '0.5');
+            if (!Number.isFinite(threshold)) return 0.5;
+            return Math.min(1, Math.max(0, threshold));
+        }
+
+        async function fetchDeepDanbooru(path, options) {
+            try {
+                return await fetch(`${DEEPDANBOORU_API_BASE}${path}`, options);
+            } catch (error) {
+                throw new Error('DeepDanbooru request failed. The public Hugging Face Space may be unavailable.');
+            }
+        }
+
+        function parseDeepDanbooruSse(text) {
+            const blocks = String(text || '').trim().split(/\r?\n\r?\n/).filter(Boolean);
+            const completeBlock = blocks.find(block => block.split(/\r?\n/).some(line => line.trim() === 'event: complete'));
+            if (!completeBlock) throw new Error('DeepDanbooru returned no completed result');
+
+            const dataText = completeBlock
+                .split(/\r?\n/)
+                .filter(line => line.startsWith('data:'))
+                .map(line => line.replace(/^data:\s?/, ''))
+                .join('\n');
+
+            if (!dataText) throw new Error('DeepDanbooru returned no tag data');
+            return JSON.parse(dataText);
+        }
+
+        function extractDeepDanbooruTags(output, threshold) {
+            const confidences = output?.[0]?.confidences;
+            if (Array.isArray(confidences)) {
+                return formatTags(confidences
+                    .filter(item => Number(item.confidence) >= threshold)
+                    .map(item => item.label));
+            }
+
+            const scoreMap = output?.[1];
+            if (scoreMap && typeof scoreMap === 'object' && !Array.isArray(scoreMap)) {
+                return formatTags(Object.entries(scoreMap)
+                    .filter(([, confidence]) => Number(confidence) >= threshold)
+                    .map(([tag]) => tag));
+            }
+
+            if (typeof output?.[2] === 'string') {
+                return formatTags(output[2].split(','));
+            }
+
+            return '';
+        }
+
+        async function requestDeepDanbooru(imageFile, imageMimeType) {
+            const threshold = getDeepDanbooruThreshold();
+            const filename = getFileUploadName(imageFile);
+            const form = new FormData();
+            form.append('files', imageFile, filename);
+
+            const uploadResp = await fetchDeepDanbooru('/upload', { method: 'POST', body: form });
+            const uploadData = await readProviderJson(uploadResp, 'DeepDanbooru');
+            const uploadPath = Array.isArray(uploadData) ? uploadData[0] : null;
+            if (!uploadPath) throw new Error('DeepDanbooru upload failed');
+
+            const predictResp = await fetchDeepDanbooru('/call/v2/predict', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    image: {
+                        path: uploadPath,
+                        orig_name: filename,
+                        mime_type: imageMimeType,
+                        meta: { _type: 'gradio.FileData' }
+                    },
+                    score_threshold: threshold
+                })
+            });
+            const predictData = await readProviderJson(predictResp, 'DeepDanbooru');
+            if (!predictData?.event_id) throw new Error('DeepDanbooru prediction did not start');
+
+            const resultResp = await fetchDeepDanbooru(`/call/predict/${predictData.event_id}`);
+            const resultText = await resultResp.text();
+            if (!resultResp.ok) {
+                throw new Error(`DeepDanbooru API error ${resultResp.status}: ${resultText || 'Request failed'}`);
+            }
+
+            return extractDeepDanbooruTags(parseDeepDanbooruSse(resultText), threshold);
+        }
+
         async function fileToBase64(file) {
             return new Promise((resolve) => {
                 const reader = new FileReader();
@@ -847,17 +939,14 @@ Limit the caption to ${maxWords} words or fewer.`;
         }
 
         async function generateImageText(imageFile, promptText, model = getModel()) {
-            const base64 = await fileToBase64(imageFile);
-            const imageData = base64.split(',')[1];
             const imageMimeType = getImageMimeType(imageFile);
 
             if (model === 'deepdanbooru') {
-                const threshold = localStorage.getItem('ddThreshold') || '0.5';
-                const resp = await fetch(`https://deepdanbooru.donmai.us/?url=${encodeURIComponent(base64)}&min_score=${threshold}`);
-                const text = await resp.text();
-                const tags = text.split('\n').map(line => line.match(/^(.*?) \(/)?.[1].trim()).filter(Boolean);
-                return formatTags(tags);
+                return requestDeepDanbooru(imageFile, imageMimeType);
             }
+
+            const base64 = await fileToBase64(imageFile);
+            const imageData = base64.split(',')[1];
 
             if (model === 'wd14') {
                 const apiKey = getWDKey();
