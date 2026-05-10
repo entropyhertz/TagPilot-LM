@@ -6,7 +6,7 @@
 
 **The browser-based beast that turns chaotic image piles into perfectly tagged, ready-to-train datasets – faster than you can say "trigger word activated!"**
 
-![TagPilot UI](https://i.ibb.co/whbs8by3/tagpilot-gui.png)
+![TagPilot UI](https://i.ibb.co/fd1SPf2w/tagpilot20.png)
 
 Tired of wrestling with folders full of untagged images like a digital archaeologist? TagPilot swoops in like a supersonic jet, handling everything client-side so your precious data never leaves your machine (except when you politely ask an AI provider to peek for tagging magic). Private-ish, local-first, and zero server drama.
 
