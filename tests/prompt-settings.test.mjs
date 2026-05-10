@@ -145,6 +145,7 @@ globalThis.__tagpilotTest = {
     openSettings,
     updateSettingsFields,
     generateTags,
+    getTextProviderIds,
     autotagSingle,
     captionSingle,
     showPreview,
@@ -252,6 +253,12 @@ test('Claude uses the Anthropic Messages API with browser vision support', async
     assert.equal(body.messages[0].content[0].type, 'image');
     assert.equal(body.messages[0].content[0].source.media_type, 'image/png');
     assert.equal(body.messages[0].content[1].text.includes('CLAUDE TAG PROMPT'), true);
+});
+
+test('LLM providers are registered in one provider map', async () => {
+    const { context } = await loadTagPilot();
+
+    assert.deepEqual(Array.from(context.__tagpilotTest.getTextProviderIds()), ['gemini', 'grok', 'openai', 'claude']);
 });
 
 test('settings model switch loads the matching provider API key', async () => {

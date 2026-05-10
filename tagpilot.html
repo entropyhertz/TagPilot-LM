@@ -414,7 +414,7 @@ Expected outcome is a human-readable continuous text consisting of several sente
         // Settings functions
         function updateSettingsFields() {
             const model = modelSelect.value;
-            const isLLM = ['gemini', 'grok', 'openai', 'claude'].includes(model);
+            const isLLM = isTextProvider(model);
             const isDD = model === 'deepdanbooru';
             const isWD = model === 'wd14';
 
@@ -444,7 +444,7 @@ Expected outcome is a human-readable continuous text consisting of several sente
         function saveSettings() {
             const model = modelSelect.value;
             localStorage.setItem('selectedModel', model);
-            if (['gemini', 'grok', 'openai', 'claude'].includes(model)) localStorage.setItem(model + 'ApiKey', apiKeyInput.value.trim());
+            if (isTextProvider(model)) localStorage.setItem(model + 'ApiKey', apiKeyInput.value.trim());
             if (model === 'wd14') localStorage.setItem('wd14ApiKey', wdApiKeyInput.value.trim());
             localStorage.setItem('ddThreshold', ddThreshold.value);
             localStorage.setItem('wdGeneralThresh', wdGeneralThresh.value);
@@ -531,11 +531,98 @@ Limit the caption to ${maxWords} words or fewer.`;
             return 'image/png';
         }
 
+        function createResponsesProvider(name, endpoint, modelName) {
+            return {
+                name,
+                async request({ apiKey, promptText, base64 }) {
+                    const resp = await fetch(endpoint, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+                        body: JSON.stringify({
+                            model: modelName,
+                            input: buildResponsesVisionInput(promptText, base64),
+                            max_output_tokens: 300,
+                            store: false
+                        })
+                    });
+                    const data = await readProviderJson(resp, name);
+                    return extractResponsesText(data);
+                }
+            };
+        }
+
+        const TEXT_PROVIDERS = {
+            gemini: {
+                name: 'Gemini',
+                async request({ apiKey, promptText, imageData, imageMimeType }) {
+                    const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${apiKey}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            contents: [{ parts: [
+                                { text: promptText },
+                                { inline_data: { mime_type: imageMimeType, data: imageData } }
+                            ] }]
+                        })
+                    });
+                    const data = await readProviderJson(resp, 'Gemini');
+                    return data.candidates[0].content.parts[0].text;
+                }
+            },
+            grok: createResponsesProvider('Grok', 'https://api.x.ai/v1/responses', 'grok-4.3'),
+            openai: createResponsesProvider('OpenAI', 'https://api.openai.com/v1/responses', 'gpt-5.4-mini'),
+            claude: {
+                name: 'Claude',
+                async request({ apiKey, promptText, imageData, imageMimeType }) {
+                    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'x-api-key': apiKey,
+                            'anthropic-version': '2023-06-01',
+                            'anthropic-dangerous-direct-browser-access': 'true'
+                        },
+                        body: JSON.stringify({
+                            model: 'claude-sonnet-4-5-20250929',
+                            max_tokens: 300,
+                            messages: [{
+                                role: 'user',
+                                content: [
+                                    {
+                                        type: 'image',
+                                        source: {
+                                            type: 'base64',
+                                            media_type: imageMimeType,
+                                            data: imageData
+                                        }
+                                    },
+                                    { type: 'text', text: promptText }
+                                ]
+                            }]
+                        })
+                    });
+                    const data = await readProviderJson(resp, 'Claude');
+                    return extractClaudeText(data);
+                }
+            }
+        };
+
+        function getTextProviderIds() {
+            return Object.keys(TEXT_PROVIDERS);
+        }
+
+        function isTextProvider(model) {
+            return Object.prototype.hasOwnProperty.call(TEXT_PROVIDERS, model);
+        }
+
+        function getTextProvider(model) {
+            const provider = TEXT_PROVIDERS[model];
+            if (!provider) throw new Error(`Unsupported provider: ${model}`);
+            return provider;
+        }
+
         function getProviderName(model) {
-            if (model === 'gemini') return 'Gemini';
-            if (model === 'grok') return 'Grok';
-            if (model === 'openai') return 'OpenAI';
-            if (model === 'claude') return 'Claude';
+            if (TEXT_PROVIDERS[model]) return TEXT_PROVIDERS[model].name;
             return model;
         }
 
@@ -572,7 +659,6 @@ Limit the caption to ${maxWords} words or fewer.`;
 
         async function generateImageText(imageFile, promptText) {
             const model = getModel();
-            const providerName = getProviderName(model);
             const base64 = await fileToBase64(imageFile);
             const imageData = base64.split(',')[1];
             const imageMimeType = getImageMimeType(imageFile);
@@ -611,70 +697,12 @@ Limit the caption to ${maxWords} words or fewer.`;
                 return tags;
             }
 
+            const provider = getTextProvider(model);
+            const providerName = provider.name;
             const apiKey = getApiKey();
             if (!apiKey) throw new Error('API key missing');
 
-            let responseText = '';
-            if (model === 'gemini') {
-                const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${apiKey}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        contents: [{ parts: [
-                            { text: promptText },
-                            { inline_data: { mime_type: imageMimeType, data: imageData } }
-                        ] }]
-                    })
-                });
-                const data = await readProviderJson(resp, providerName);
-                responseText = data.candidates[0].content.parts[0].text;
-            } else if (model === 'claude') {
-                const resp = await fetch('https://api.anthropic.com/v1/messages', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'x-api-key': apiKey,
-                        'anthropic-version': '2023-06-01',
-                        'anthropic-dangerous-direct-browser-access': 'true'
-                    },
-                    body: JSON.stringify({
-                        model: 'claude-sonnet-4-5-20250929',
-                        max_tokens: 300,
-                        messages: [{
-                            role: 'user',
-                            content: [
-                                {
-                                    type: 'image',
-                                    source: {
-                                        type: 'base64',
-                                        media_type: imageMimeType,
-                                        data: imageData
-                                    }
-                                },
-                                { type: 'text', text: promptText }
-                            ]
-                        }]
-                    })
-                });
-                const data = await readProviderJson(resp, providerName);
-                responseText = extractClaudeText(data);
-            } else {
-                const isGrok = model === 'grok';
-                const endpoint = isGrok ? 'https://api.x.ai/v1/responses' : 'https://api.openai.com/v1/responses';
-                const modelName = isGrok ? 'grok-4.3' : 'gpt-5.4-mini';
-                const resp = await fetch(endpoint, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-                    body: JSON.stringify({
-                        model: modelName,
-                        input: buildResponsesVisionInput(promptText, base64),
-                        max_output_tokens: 300,
-                        store: false
-                    })
-                });
-                const data = await readProviderJson(resp, providerName);
-                responseText = extractResponsesText(data);
-            }
+            const responseText = await provider.request({ apiKey, promptText, base64, imageData, imageMimeType });
             if (!responseText) throw new Error(`${providerName} returned no text`);
             return responseText.trim();
         }
