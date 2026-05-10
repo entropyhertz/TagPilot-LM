@@ -372,6 +372,16 @@ test('tag and caption batch flows share one runner', async () => {
     assert.match(html, /async function startBatchCaptioning\(\)[\s\S]*runBatchProcessing\(/);
 });
 
+test('object URLs are cached and revoked through helper functions', async () => {
+    const html = await readFile(new URL('../tagpilot.html', import.meta.url), 'utf8');
+
+    assert.match(html, /function getFileObjectUrl\(/);
+    assert.match(html, /function revokeFileObjectUrl\(/);
+    assert.match(html, /function clearFileObjectUrls\(/);
+    assert.match(html, /URL\.revokeObjectURL/);
+    assert.doesNotMatch(html, /const imageUrl = URL\.createObjectURL\(item\.file\)/);
+});
+
 test('preview modal can start cropping the previewed image', async () => {
     const html = await readFile(new URL('../tagpilot.html', import.meta.url), 'utf8');
     assert.match(html, /id="preview-crop"/);

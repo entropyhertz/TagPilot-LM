@@ -275,6 +275,8 @@
         let cropper = null;
         let currentCropIndex = -1;
         let currentPreviewIndex = -1;
+        const fileObjectUrls = new Map();
+        const transientObjectUrls = new Set();
 
         const DEFAULT_TAG_PROMPT = `You are an expert for creating photorealistic AI training datasets. Your task is to generate descriptive tags for the provided image for the purpose of SDXL lora training using kohya_ss.
 Follow these rules strictly:
@@ -732,6 +734,41 @@ Limit the caption to ${maxWords} words or fewer.`;
             loader.style.display = 'none';
         }
 
+        function revokeObjectUrl(url) {
+            if (url && typeof URL.revokeObjectURL === 'function') {
+                URL.revokeObjectURL(url);
+            }
+        }
+
+        function getFileObjectUrl(file) {
+            if (!fileObjectUrls.has(file)) {
+                fileObjectUrls.set(file, URL.createObjectURL(file));
+            }
+            return fileObjectUrls.get(file);
+        }
+
+        function revokeFileObjectUrl(file) {
+            const url = fileObjectUrls.get(file);
+            revokeObjectUrl(url);
+            fileObjectUrls.delete(file);
+        }
+
+        function clearFileObjectUrls() {
+            fileObjectUrls.forEach(url => revokeObjectUrl(url));
+            fileObjectUrls.clear();
+        }
+
+        function createTransientObjectUrl(blob) {
+            const url = URL.createObjectURL(blob);
+            transientObjectUrls.add(url);
+            return url;
+        }
+
+        function revokeTransientObjectUrl(url) {
+            revokeObjectUrl(url);
+            transientObjectUrls.delete(url);
+        }
+
         async function calculateFileHash(file) {
             const arrayBuffer = await file.arrayBuffer();
             const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
@@ -853,6 +890,7 @@ Limit the caption to ${maxWords} words or fewer.`;
         }
 
         function handleReset() {
+            clearFileObjectUrls();
             dataset = [];
             imageUpload.value = '';
             zipUpload.value = '';
@@ -882,11 +920,12 @@ Limit the caption to ${maxWords} words or fewer.`;
                 zip.file(txtName, item.tags);
             });
             const blob = await zip.generateAsync({type:"blob"});
-            const url = URL.createObjectURL(blob);
+            const url = createTransientObjectUrl(blob);
             const a = document.createElement('a');
             a.href = url;
             a.download = (datasetNameInput.value.trim() || 'dataset') + '.zip';
             a.click();
+            setTimeout(() => revokeTransientObjectUrl(url), 0);
             showNotification("Exported ZIP");
         }
 
@@ -1074,7 +1113,7 @@ Limit the caption to ${maxWords} words or fewer.`;
             dataset.forEach((item, index) => {
                 const card = document.createElement('div');
                 card.className = 'bg-gray-800 rounded-lg shadow-md overflow-hidden flex h-72 items-center';
-                const imageUrl = URL.createObjectURL(item.file);
+                const imageUrl = getFileObjectUrl(item.file);
 
                 card.innerHTML = `
                     <div class="p-4 h-full flex items-center justify-center">
@@ -1267,13 +1306,14 @@ Limit the caption to ${maxWords} words or fewer.`;
         }
 
         function removeImage(index) {
+            revokeFileObjectUrl(dataset[index].file);
             dataset.splice(index, 1);
             render();
         }
 
         function openCrop(index) {
             currentCropIndex = index;
-            cropImage.src = URL.createObjectURL(dataset[index].file);
+            cropImage.src = getFileObjectUrl(dataset[index].file);
             cropModal.style.display = 'flex';
             cropper = new Cropper(cropImage, { aspectRatio: NaN, viewMode: 1 });
         }
@@ -1282,7 +1322,10 @@ Limit the caption to ${maxWords} words or fewer.`;
             if (!cropper) return;
             const canvas = cropper.getCroppedCanvas();
             const blob = await new Promise(r => canvas.toBlob(r));
-            dataset[currentCropIndex].file = new File([blob], dataset[currentCropIndex].file.name, { type: dataset[currentCropIndex].file.type });
+            const item = dataset[currentCropIndex];
+            const oldFile = item.file;
+            item.file = new File([blob], oldFile.name, { type: oldFile.type });
+            revokeFileObjectUrl(oldFile);
             cropper.destroy();
             cropper = null;
             cropModal.style.display = 'none';
