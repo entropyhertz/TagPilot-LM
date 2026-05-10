@@ -356,6 +356,14 @@ test('settings launcher is labeled and positioned at the top left', async () => 
     assert.match(html, /id="settings-icon"[^>]*>[\s\S]*Settings[\s\S]*<\/div>/);
 });
 
+test('tag pill rendering does not interpolate tag text into innerHTML', async () => {
+    const html = await readFile(new URL('../tagpilot.html', import.meta.url), 'utf8');
+
+    assert.doesNotMatch(html, /pill\.innerHTML\s*=\s*`\$\{tag\}/);
+    assert.doesNotMatch(html, /onclick="deleteTagGlobally\('\$\{tag\}'\)"/);
+    assert.doesNotMatch(html, /onclick="removeTagFromImage\(\$\{index\}, \$\{ti\}\)"/);
+});
+
 test('preview modal can start cropping the previewed image', async () => {
     const html = await readFile(new URL('../tagpilot.html', import.meta.url), 'utf8');
     assert.match(html, /id="preview-crop"/);

@@ -1133,7 +1133,23 @@ Limit the caption to ${maxWords} words or fewer.`;
             sorted.forEach(([tag, count]) => {
                 const pill = document.createElement('span');
                 pill.className = 'inline-flex items-center px-2 py-1 rounded-full text-xs bg-gray-700 text-gray-300 hover:bg-gray-600';
-                pill.innerHTML = `${tag} <span class="ml-1 text-gray-500">(${count})</span> <button class="ml-2 hover:text-red-500" onclick="deleteTagGlobally('${tag}')">×</button>`;
+
+                const label = document.createElement('span');
+                label.textContent = tag;
+                pill.appendChild(label);
+
+                const countLabel = document.createElement('span');
+                countLabel.className = 'ml-1 text-gray-500';
+                countLabel.textContent = `(${count})`;
+                pill.appendChild(countLabel);
+
+                const deleteButton = document.createElement('button');
+                deleteButton.type = 'button';
+                deleteButton.className = 'ml-2 hover:text-red-500';
+                deleteButton.textContent = '×';
+                deleteButton.addEventListener('click', () => deleteTagGlobally(tag));
+                pill.appendChild(deleteButton);
+
                 tagViewerList.appendChild(pill);
             });
             totalTagsBadge.textContent = `${sorted.length} tags`;
@@ -1156,7 +1172,18 @@ Limit the caption to ${maxWords} words or fewer.`;
                 tags.forEach((tag, ti) => {
                     const pill = document.createElement('span');
                     pill.className = 'inline-flex items-center px-2 py-1 rounded-full text-xs bg-gray-600 text-gray-300';
-                    pill.innerHTML = `${tag} <button class="ml-1 hover:text-red-500" onclick="removeTagFromImage(${index}, ${ti})">×</button>`;
+
+                    const label = document.createElement('span');
+                    label.textContent = tag;
+                    pill.appendChild(label);
+
+                    const removeButton = document.createElement('button');
+                    removeButton.type = 'button';
+                    removeButton.className = 'ml-1 hover:text-red-500';
+                    removeButton.textContent = '×';
+                    removeButton.addEventListener('click', () => removeTagFromImage(index, ti));
+                    pill.appendChild(removeButton);
+
                     wrapper.appendChild(pill);
                 });
                 const input = document.createElement('input');
