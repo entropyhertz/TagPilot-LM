@@ -273,8 +273,9 @@
         let currentTriggerWord = "";
         let isBatchProcessing = false;
         let cropper = null;
-        let currentCropIndex = -1;
-        let currentPreviewIndex = -1;
+        let currentCropItemId = null;
+        let currentPreviewItemId = null;
+        let nextDatasetItemId = 1;
         const fileObjectUrls = new Map();
         const transientObjectUrls = new Set();
 
@@ -734,6 +735,31 @@ Limit the caption to ${maxWords} words or fewer.`;
             loader.style.display = 'none';
         }
 
+        function createDatasetItemId() {
+            return `item-${nextDatasetItemId++}`;
+        }
+
+        function ensureDatasetItemId(item) {
+            if (!item.id) item.id = createDatasetItemId();
+            return item;
+        }
+
+        function ensureDatasetItemIds() {
+            dataset.forEach(ensureDatasetItemId);
+        }
+
+        function createDatasetItem(file, tags = '', type = 'tags') {
+            return ensureDatasetItemId({ file, tags, type });
+        }
+
+        function findDatasetItemIndexById(itemId) {
+            return dataset.findIndex(item => item.id === itemId);
+        }
+
+        function findDatasetItemById(itemId) {
+            return dataset.find(item => item.id === itemId) || null;
+        }
+
         function revokeObjectUrl(url) {
             if (url && typeof URL.revokeObjectURL === 'function') {
                 URL.revokeObjectURL(url);
@@ -799,7 +825,7 @@ Limit the caption to ${maxWords} words or fewer.`;
                 }
                 
                 let initialTags = currentTriggerWord ? currentTriggerWord : "";
-                newDatasetItems.push({ file: finalFile, tags: initialTags, type: 'tags' });
+                newDatasetItems.push(createDatasetItem(finalFile, initialTags, 'tags'));
                 existingHashes.add(hash); 
             }
             
@@ -870,7 +896,7 @@ Limit the caption to ${maxWords} words or fewer.`;
                         }
                     }
 
-                    newDatasetItems.push({ file: imageFile, tags: tags, type: 'tags' });
+                    newDatasetItems.push(createDatasetItem(imageFile, tags, 'tags'));
                     existingHashes.add(hash);
                 }
                 
@@ -892,6 +918,7 @@ Limit the caption to ${maxWords} words or fewer.`;
         function handleReset() {
             clearFileObjectUrls();
             dataset = [];
+            nextDatasetItemId = 1;
             imageUpload.value = '';
             zipUpload.value = '';
             datasetNameInput.value = '';
@@ -947,25 +974,26 @@ Limit the caption to ${maxWords} words or fewer.`;
         }
 
         function renderTagUpdates() {
-            dataset.forEach((_, i) => {
-                const wrapper = document.querySelector(`.tag-area-wrapper[data-index='${i}']`);
-                if (wrapper) renderTagsInCard(wrapper, i);
+            ensureDatasetItemIds();
+            dataset.forEach(item => {
+                const wrapper = document.querySelector(`.tag-area-wrapper[data-id='${item.id}']`);
+                if (wrapper) renderTagsInCard(wrapper, item.id);
             });
             renderTagViewer();
         }
 
-        function setSingleProcessing(index, label) {
-            const item = dataset[index];
+        function setSingleProcessing(itemId, label) {
+            const item = findDatasetItemById(itemId);
             if (!item) return;
             item.processing = label;
 
-            const status = document.querySelector(`.single-processing-status[data-index='${index}']`);
+            const status = document.querySelector(`.single-processing-status[data-id='${itemId}']`);
             if (!status) return;
 
             const isProcessing = Boolean(label);
             const text = status.querySelector('.single-processing-text');
             const spinner = status.querySelector('.single-processing-spinner');
-            const buttons = document.querySelectorAll(`[data-index='${index}'].crop-btn, [data-index='${index}'].autotag-single-button, [data-index='${index}'].caption-single-button`);
+            const buttons = document.querySelectorAll(`[data-id='${itemId}'].crop-btn, [data-id='${itemId}'].autotag-single-button, [data-id='${itemId}'].caption-single-button`);
 
             status.classList.toggle('invisible', !isProcessing);
             status.setAttribute('aria-hidden', isProcessing ? 'false' : 'true');
@@ -1065,8 +1093,8 @@ Limit the caption to ${maxWords} words or fewer.`;
                     if (tags.length > maxTags) tags = tags.slice(0, maxTags);
                     item.tags = tags.join(', ');
                     item.type = 'tags';
-                    const wrapper = document.querySelector(`.tag-area-wrapper[data-index='${index}']`);
-                    if (wrapper) renderTagsInCard(wrapper, index);
+                    const wrapper = document.querySelector(`.tag-area-wrapper[data-id='${item.id}']`);
+                    if (wrapper) renderTagsInCard(wrapper, item.id);
                 }
             });
         }
@@ -1090,13 +1118,14 @@ Limit the caption to ${maxWords} words or fewer.`;
                     if (currentTriggerWord && !final.startsWith(currentTriggerWord)) final = currentTriggerWord + ", " + final;
                     item.tags = final;
                     item.type = 'caption';
-                    const wrapper = document.querySelector(`.tag-area-wrapper[data-index='${index}']`);
-                    if (wrapper) renderTagsInCard(wrapper, index);
+                    const wrapper = document.querySelector(`.tag-area-wrapper[data-id='${item.id}']`);
+                    if (wrapper) renderTagsInCard(wrapper, item.id);
                 }
             });
         }
 
         function render() {
+            ensureDatasetItemIds();
             imageGrid.innerHTML = '';
 
             if (dataset.length === 0) {
@@ -1113,36 +1142,37 @@ Limit the caption to ${maxWords} words or fewer.`;
             dataset.forEach((item, index) => {
                 const card = document.createElement('div');
                 card.className = 'bg-gray-800 rounded-lg shadow-md overflow-hidden flex h-72 items-center';
+                const itemId = item.id;
                 const imageUrl = getFileObjectUrl(item.file);
 
                 card.innerHTML = `
                     <div class="p-4 h-full flex items-center justify-center">
                         <span class="text-2xl font-bold text-gray-500">${index + 1}</span>
                     </div>
-                    <div class="w-2/5 flex-shrink-0 cursor-pointer thumbnail-container h-full" onclick="showPreview('${imageUrl}', ${index})">
+                    <div class="w-2/5 flex-shrink-0 cursor-pointer thumbnail-container h-full" data-id="${item.id}">
                         <img src="${imageUrl}" class="w-full h-full object-cover">
                     </div>
                     <div class="p-4 flex flex-col flex-grow min-w-0 h-full">
                         <div class="flex justify-between items-center mb-2">
-                            <p class="text-xs text-gray-400" id="resolution-${index}">loading...</p>
-                            <button onclick="toggleCardType(${index})" title="Toggle Tags/Caption">
+                            <p class="text-xs text-gray-400" id="resolution-${itemId}">loading...</p>
+                            <button class="toggle-type-button" data-id="${item.id}" title="Toggle Tags/Caption">
                                 <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
                             </button>
                         </div>
                         <div class="flex flex-grow gap-3 min-h-0">
-                            <div class="tag-area-wrapper w-full flex-grow bg-gray-700 border border-gray-600 rounded-md p-2 flex flex-wrap items-start content-start gap-2 overflow-y-auto" data-index="${index}"></div>
+                            <div class="tag-area-wrapper w-full flex-grow bg-gray-700 border border-gray-600 rounded-md p-2 flex flex-wrap items-start content-start gap-2 overflow-y-auto" data-id="${item.id}"></div>
                             <div class="flex flex-col gap-2 w-28">
-                                <div class="single-processing-status ${item.processing ? '' : 'invisible'} h-5 flex items-center justify-end gap-2 text-[11px] text-teal-300 whitespace-nowrap" data-index="${index}" aria-hidden="${item.processing ? 'false' : 'true'}">
+                                <div class="single-processing-status ${item.processing ? '' : 'invisible'} h-5 flex items-center justify-end gap-2 text-[11px] text-teal-300 whitespace-nowrap" data-id="${item.id}" aria-hidden="${item.processing ? 'false' : 'true'}">
                                     <span class="single-processing-text">${item.processing ? 'Processing...' : ''}</span>
                                     <svg class="single-processing-spinner ${item.processing ? '' : 'hidden'} animate-spin h-3.5 w-3.5 text-teal-300 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                                         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                     </svg>
                                 </div>
-                                <button class="crop-btn bg-blue-600 hover:bg-blue-700 py-2 px-3 rounded text-sm" data-index="${index}">Crop</button>
-                                <button class="autotag-single-button bg-teal-600 hover:bg-teal-700 py-2 px-3 rounded text-sm" data-index="${index}">Tag</button>
-                                <button class="caption-single-button bg-purple-600 hover:bg-purple-700 py-2 px-3 rounded text-sm" data-index="${index}">Caption</button>
-                                <button class="remove-btn bg-red-600 hover:bg-red-700 py-2 px-3 rounded text-sm" data-index="${index}">Remove</button>
+                                <button class="crop-btn bg-blue-600 hover:bg-blue-700 py-2 px-3 rounded text-sm" data-id="${item.id}">Crop</button>
+                                <button class="autotag-single-button bg-teal-600 hover:bg-teal-700 py-2 px-3 rounded text-sm" data-id="${item.id}">Tag</button>
+                                <button class="caption-single-button bg-purple-600 hover:bg-purple-700 py-2 px-3 rounded text-sm" data-id="${item.id}">Caption</button>
+                                <button class="remove-btn bg-red-600 hover:bg-red-700 py-2 px-3 rounded text-sm" data-id="${item.id}">Remove</button>
                             </div>
                         </div>
                     </div>
@@ -1151,14 +1181,16 @@ Limit the caption to ${maxWords} words or fewer.`;
                 imageGrid.appendChild(card);
 
                 const img = card.querySelector('img');
-                img.onload = () => document.getElementById(`resolution-${index}`).textContent = `${img.naturalWidth}x${img.naturalHeight}`;
+                img.onload = () => document.getElementById(`resolution-${itemId}`).textContent = `${img.naturalWidth}x${img.naturalHeight}`;
 
-                renderTagsInCard(card.querySelector('.tag-area-wrapper'), index);
+                renderTagsInCard(card.querySelector('.tag-area-wrapper'), itemId);
 
-                card.querySelector('.crop-btn').addEventListener('click', () => openCrop(index));
-                card.querySelector('.autotag-single-button').addEventListener('click', () => autotagSingle(index));
-                card.querySelector('.caption-single-button').addEventListener('click', () => captionSingle(index));
-                card.querySelector('.remove-btn').addEventListener('click', () => removeImage(index));
+                card.querySelector('.thumbnail-container').addEventListener('click', () => showPreview(imageUrl, itemId));
+                card.querySelector('.toggle-type-button').addEventListener('click', () => toggleCardType(itemId));
+                card.querySelector('.crop-btn').addEventListener('click', () => openCrop(itemId));
+                card.querySelector('.autotag-single-button').addEventListener('click', () => autotagSingle(itemId));
+                card.querySelector('.caption-single-button').addEventListener('click', () => captionSingle(itemId));
+                card.querySelector('.remove-btn').addEventListener('click', () => removeImage(itemId));
             });
 
             renderTagViewer();
@@ -1197,9 +1229,11 @@ Limit the caption to ${maxWords} words or fewer.`;
             totalTagsBadge.textContent = `${sorted.length} tags`;
         }
 
-        function renderTagsInCard(wrapper, index) {
+        function renderTagsInCard(wrapper, itemId) {
+            if (!wrapper) return;
             wrapper.innerHTML = '';
-            const item = dataset[index];
+            const item = findDatasetItemById(itemId);
+            if (!item) return;
             if (item.type === 'caption') {
                 const ta = document.createElement('textarea');
                 ta.value = item.tags;
@@ -1223,7 +1257,7 @@ Limit the caption to ${maxWords} words or fewer.`;
                     removeButton.type = 'button';
                     removeButton.className = 'ml-1 hover:text-red-500';
                     removeButton.textContent = '×';
-                    removeButton.addEventListener('click', () => removeTagFromImage(index, ti));
+                    removeButton.addEventListener('click', () => removeTagFromImage(itemId, ti));
                     pill.appendChild(removeButton);
 
                     wrapper.appendChild(pill);
@@ -1239,7 +1273,7 @@ Limit the caption to ${maxWords} words or fewer.`;
                         if (v) {
                             tags.push(v);
                             item.tags = tags.join(', ');
-                            renderTagsInCard(wrapper, index);
+                            renderTagsInCard(wrapper, itemId);
                             input.value = '';
                             renderTagViewer();
                         }
@@ -1249,12 +1283,13 @@ Limit the caption to ${maxWords} words or fewer.`;
             }
         }
 
-        function removeTagFromImage(index, tagIndex) {
-            const item = dataset[index];
+        function removeTagFromImage(itemId, tagIndex) {
+            const item = findDatasetItemById(itemId);
+            if (!item) return;
             const tags = item.tags.split(',').map(t => t.trim()).filter(Boolean);
             tags.splice(tagIndex, 1);
             item.tags = tags.join(', ');
-            renderTagsInCard(document.querySelector(`.tag-area-wrapper[data-index='${index}']`), index);
+            renderTagsInCard(document.querySelector(`.tag-area-wrapper[data-id='${itemId}']`), itemId);
             renderTagViewer();
         }
 
@@ -1267,53 +1302,62 @@ Limit the caption to ${maxWords} words or fewer.`;
             renderTagUpdates();
         }
 
-        function toggleCardType(index) {
-            const item = dataset[index];
+        function toggleCardType(itemId) {
+            const item = findDatasetItemById(itemId);
+            if (!item) return;
             item.type = item.type === 'caption' ? 'tags' : 'caption';
-            renderTagsInCard(document.querySelector(`.tag-area-wrapper[data-index='${index}']`), index);
+            renderTagsInCard(document.querySelector(`.tag-area-wrapper[data-id='${itemId}']`), itemId);
         }
 
-        async function autotagSingle(index) {
-            setSingleProcessing(index, 'Tagging');
+        async function autotagSingle(itemId) {
+            const item = findDatasetItemById(itemId);
+            if (!item) return;
+            setSingleProcessing(itemId, 'Tagging');
             try {
-                const tags = await generateTags(dataset[index].file);
-                dataset[index].tags = currentTriggerWord ? currentTriggerWord + ', ' + tags : tags;
-                dataset[index].type = 'tags';
-                renderTagsInCard(document.querySelector(`.tag-area-wrapper[data-index='${index}']`), index);
+                const tags = await generateTags(item.file);
+                item.tags = currentTriggerWord ? currentTriggerWord + ', ' + tags : tags;
+                item.type = 'tags';
+                renderTagsInCard(document.querySelector(`.tag-area-wrapper[data-id='${itemId}']`), itemId);
                 renderTagViewer();
                 showNotification("Tagged");
             } catch (e) {
                 showNotification("Error: " + e.message);
             } finally {
-                setSingleProcessing(index, null);
+                setSingleProcessing(itemId, null);
             }
         }
 
-        async function captionSingle(index) {
-            setSingleProcessing(index, 'Captioning');
+        async function captionSingle(itemId) {
+            const item = findDatasetItemById(itemId);
+            if (!item) return;
+            setSingleProcessing(itemId, 'Captioning');
             try {
-                const caption = await generateCaption(dataset[index].file);
-                dataset[index].tags = caption;
-                dataset[index].type = 'caption';
-                renderTagsInCard(document.querySelector(`.tag-area-wrapper[data-index='${index}']`), index);
+                const caption = await generateCaption(item.file);
+                item.tags = caption;
+                item.type = 'caption';
+                renderTagsInCard(document.querySelector(`.tag-area-wrapper[data-id='${itemId}']`), itemId);
                 renderTagViewer();
                 showNotification("Captioned");
             } catch (e) {
                 showNotification("Error: " + e.message);
             } finally {
-                setSingleProcessing(index, null);
+                setSingleProcessing(itemId, null);
             }
         }
 
-        function removeImage(index) {
+        function removeImage(itemId) {
+            const index = findDatasetItemIndexById(itemId);
+            if (index < 0) return;
             revokeFileObjectUrl(dataset[index].file);
             dataset.splice(index, 1);
             render();
         }
 
-        function openCrop(index) {
-            currentCropIndex = index;
-            cropImage.src = getFileObjectUrl(dataset[index].file);
+        function openCrop(itemId) {
+            const item = findDatasetItemById(itemId);
+            if (!item) return;
+            currentCropItemId = itemId;
+            cropImage.src = getFileObjectUrl(item.file);
             cropModal.style.display = 'flex';
             cropper = new Cropper(cropImage, { aspectRatio: NaN, viewMode: 1 });
         }
@@ -1322,12 +1366,17 @@ Limit the caption to ${maxWords} words or fewer.`;
             if (!cropper) return;
             const canvas = cropper.getCroppedCanvas();
             const blob = await new Promise(r => canvas.toBlob(r));
-            const item = dataset[currentCropIndex];
+            const item = findDatasetItemById(currentCropItemId);
+            if (!item) {
+                cancelCrop();
+                return;
+            }
             const oldFile = item.file;
             item.file = new File([blob], oldFile.name, { type: oldFile.type });
             revokeFileObjectUrl(oldFile);
             cropper.destroy();
             cropper = null;
+            currentCropItemId = null;
             cropModal.style.display = 'none';
             render();
             showNotification("Cropped");
@@ -1336,25 +1385,26 @@ Limit the caption to ${maxWords} words or fewer.`;
         function cancelCrop() {
             if (cropper) cropper.destroy();
             cropper = null;
+            currentCropItemId = null;
             cropModal.style.display = 'none';
         }
 
-        function showPreview(url, index = -1) {
-            currentPreviewIndex = index;
+        function showPreview(url, itemId = null) {
+            currentPreviewItemId = itemId;
             previewImage.src = url;
             previewModal.style.display = 'flex';
         }
 
         function cropPreviewImage() {
-            if (currentPreviewIndex < 0 || !dataset[currentPreviewIndex]) return;
-            const index = currentPreviewIndex;
+            if (!currentPreviewItemId || !findDatasetItemById(currentPreviewItemId)) return;
+            const itemId = currentPreviewItemId;
             hidePreview();
-            openCrop(index);
+            openCrop(itemId);
         }
 
         function hidePreview() {
             previewModal.style.display = 'none';
-            currentPreviewIndex = -1;
+            currentPreviewItemId = null;
         }
 
         render();

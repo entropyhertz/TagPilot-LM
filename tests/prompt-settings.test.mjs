@@ -152,7 +152,7 @@ globalThis.__tagpilotTest = {
     cropPreviewImage,
     startBatchTagging,
     startBatchCaptioning,
-    setDataset(value) { dataset = value; },
+    setDataset(value) { dataset = value; ensureDatasetItemIds(); },
     getDataset() { return dataset; },
 };`, context);
 
@@ -309,8 +309,9 @@ test('single-image tagging shows processing state while the request is pending',
         fetchHandler: async () => pending.promise,
     });
     context.__tagpilotTest.setDataset([{ file: { name: 'image.png', type: 'image/png' }, tags: '', type: 'tags' }]);
+    const itemId = context.__tagpilotTest.getDataset()[0].id;
 
-    const operation = context.__tagpilotTest.autotagSingle(0);
+    const operation = context.__tagpilotTest.autotagSingle(itemId);
 
     assert.equal(context.__tagpilotTest.getDataset()[0].processing, 'Tagging');
 
@@ -332,8 +333,9 @@ test('single-image captioning shows processing state while the request is pendin
         fetchHandler: async () => pending.promise,
     });
     context.__tagpilotTest.setDataset([{ file: { name: 'image.png', type: 'image/png' }, tags: '', type: 'tags' }]);
+    const itemId = context.__tagpilotTest.getDataset()[0].id;
 
-    const operation = context.__tagpilotTest.captionSingle(0);
+    const operation = context.__tagpilotTest.captionSingle(itemId);
 
     assert.equal(context.__tagpilotTest.getDataset()[0].processing, 'Captioning');
 
@@ -382,14 +384,27 @@ test('object URLs are cached and revoked through helper functions', async () => 
     assert.doesNotMatch(html, /const imageUrl = URL\.createObjectURL\(item\.file\)/);
 });
 
+test('single-image card actions are wired by stable item ids', async () => {
+    const html = await readFile(new URL('../tagpilot.html', import.meta.url), 'utf8');
+
+    assert.match(html, /function createDatasetItemId\(/);
+    assert.match(html, /function findDatasetItemById\(/);
+    assert.match(html, /data-id="\$\{item\.id\}"/);
+    assert.doesNotMatch(html, /autotagSingle\(index\)/);
+    assert.doesNotMatch(html, /captionSingle\(index\)/);
+    assert.doesNotMatch(html, /openCrop\(index\)/);
+    assert.doesNotMatch(html, /removeImage\(index\)/);
+});
+
 test('preview modal can start cropping the previewed image', async () => {
     const html = await readFile(new URL('../tagpilot.html', import.meta.url), 'utf8');
     assert.match(html, /id="preview-crop"/);
 
     const { context, elements } = await loadTagPilot();
     context.__tagpilotTest.setDataset([{ file: { name: 'image.png', type: 'image/png' }, tags: '', type: 'tags' }]);
+    const itemId = context.__tagpilotTest.getDataset()[0].id;
 
-    context.__tagpilotTest.showPreview('blob:preview', 0);
+    context.__tagpilotTest.showPreview('blob:preview', itemId);
 
     assert.equal(elements.get('preview-image').src, 'blob:preview');
     assert.equal(elements.get('preview-modal').style.display, 'flex');
