@@ -152,6 +152,12 @@ globalThis.__tagpilotTest = {
     cropPreviewImage,
     startBatchTagging,
     startBatchCaptioning,
+    parseTags,
+    formatTags,
+    mergeTags,
+    withTriggerWord,
+    withoutTriggerWord,
+    isBlankOrTriggerOnly,
     setDataset(value) { dataset = value; ensureDatasetItemIds(); },
     getDataset() { return dataset; },
 };`, context);
@@ -394,6 +400,19 @@ test('single-image card actions are wired by stable item ids', async () => {
     assert.doesNotMatch(html, /captionSingle\(index\)/);
     assert.doesNotMatch(html, /openCrop\(index\)/);
     assert.doesNotMatch(html, /removeImage\(index\)/);
+});
+
+test('tag utility helpers normalize tags and trigger words', async () => {
+    const { context } = await loadTagPilot();
+    const helpers = context.__tagpilotTest;
+
+    assert.deepEqual(Array.from(helpers.parseTags(' alpha, , beta, alpha ')), ['alpha', 'beta', 'alpha']);
+    assert.equal(helpers.formatTags([' alpha ', '', 'beta']), 'alpha, beta');
+    assert.deepEqual(Array.from(helpers.mergeTags('alpha, beta', 'beta, gamma')), ['alpha', 'beta', 'gamma']);
+    assert.equal(helpers.withTriggerWord('beta, alpha', 'alpha'), 'alpha, beta');
+    assert.equal(helpers.withoutTriggerWord('alpha, beta', 'alpha'), 'beta');
+    assert.equal(helpers.isBlankOrTriggerOnly('alpha', 'alpha'), true);
+    assert.equal(helpers.isBlankOrTriggerOnly('alpha, beta', 'alpha'), false);
 });
 
 test('preview modal can start cropping the previewed image', async () => {
