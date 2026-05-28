@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v2.2 - 2026-05-28
 
 - Added a **vLLM OpenAI compatible** provider for local/Runpod models.
 - Added Settings fields for vLLM endpoint URL, model type, and API key.
