@@ -53,6 +53,7 @@
                         <option value="grok">Grok</option>
                         <option value="openai">OpenAI</option>
                         <option value="claude">Claude</option>
+                        <option value="vllm">vLLM OpenAI compatible</option>
                         <option value="deepdanbooru">DeepDanbooru</option>
                         <option value="wd14">WD1.4 Tagger</option>
                     </select>
@@ -70,6 +71,7 @@
                         <option value="grok">Grok</option>
                         <option value="openai">OpenAI</option>
                         <option value="claude">Claude</option>
+                        <option value="vllm">vLLM OpenAI compatible</option>
                     </select>
                     <label class="block mb-2 text-sm text-gray-400">Max caption length (words)</label>
                     <input type="number" id="setting-max-caption-len" value="50" min="5" max="200" class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-purple-500 mb-4">
@@ -135,6 +137,11 @@
                                 <td class="py-2 text-xs text-gray-500" data-key-status="claude">Not saved</td>
                             </tr>
                             <tr>
+                                <td class="py-2 pr-4 text-gray-200">vLLM OpenAI compatible</td>
+                                <td class="py-2 pr-4"><input type="password" id="api-key-vllm" placeholder="sk-pod-id" class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-indigo-500"></td>
+                                <td class="py-2 text-xs text-gray-500" data-key-status="vllm">Not saved</td>
+                            </tr>
+                            <tr>
                                 <td class="py-2 pr-4 text-gray-200">DeepDanbooru</td>
                                 <td class="py-2 pr-4"><input type="text" id="api-key-deepdanbooru" disabled value="No key required" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-gray-500"></td>
                                 <td class="py-2 text-xs text-teal-400">Ready</td>
@@ -159,6 +166,31 @@
                     <div>
                         <label class="block mb-2 text-sm text-gray-400">WD1.4 character threshold</label>
                         <input type="number" id="wdCharThresh" min="0" max="1" step="0.05" value="0.85" class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-indigo-500">
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 pt-4 border-t border-gray-700">
+                    <div>
+                        <label class="block mb-2 text-sm text-gray-400">vLLM endpoint URL</label>
+                        <input type="url" id="vllm-endpoint" placeholder="https://pod-id-8000.proxy.runpod.net" class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block mb-2 text-sm text-gray-400">vLLM model preset</label>
+                        <select id="vllm-model-preset" class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-indigo-500">
+                            <option value="">Custom model ID</option>
+                            <option value="Qwen/Qwen2.5-VL-3B-Instruct">Qwen2.5 VL 3B Instruct</option>
+                            <option value="Qwen/Qwen2.5-VL-7B-Instruct">Qwen2.5 VL 7B Instruct</option>
+                            <option value="Qwen/Qwen3-VL-4B-Instruct">Qwen3 VL 4B Instruct</option>
+                            <option value="Qwen/Qwen3-VL-8B-Instruct">Qwen3 VL 8B Instruct</option>
+                            <option value="Qwen/Qwen3.5-9B-Instruct">Qwen3.5 9B Instruct</option>
+                            <option value="google/gemma-3-4b-it">Gemma 3 4B IT</option>
+                            <option value="google/gemma-3-12b-it">Gemma 3 12B IT</option>
+                            <option value="mistralai/Pixtral-12B-2409">Mistral Pixtral 12B</option>
+                            <option value="mistralai/Mistral-Small-3.1-24B-Instruct-2503">Mistral Small 3.1 24B</option>
+                        </select>
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block mb-2 text-sm text-gray-400">vLLM model type</label>
+                        <input type="text" id="vllm-model-type" value="Qwen/Qwen3-8B" placeholder="Qwen/Qwen3-8B" class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-indigo-500">
                     </div>
                 </div>
             </section>
@@ -388,10 +420,22 @@ The final output MUST be a comma-separated list of tags. No comments, no 'Here i
 
 Expected outcome is a human-readable continuous text consisting of several sentences without the use of numbering or bullet points.`;
 
-        const TEXT_MODEL_IDS = ['gemini', 'grok', 'openai', 'claude'];
+        const TEXT_MODEL_IDS = ['gemini', 'grok', 'openai', 'claude', 'vllm'];
         const TAG_MODEL_IDS = [...TEXT_MODEL_IDS, 'deepdanbooru', 'wd14'];
         const API_KEY_MODEL_IDS = [...TEXT_MODEL_IDS, 'wd14'];
         const DEEPDANBOORU_API_BASE = 'https://hysts-deepdanbooru.hf.space/gradio_api';
+        const VLLM_DEFAULT_MODEL = 'Qwen/Qwen3-8B';
+        const VLLM_MODEL_PRESETS = [
+            'Qwen/Qwen2.5-VL-3B-Instruct',
+            'Qwen/Qwen2.5-VL-7B-Instruct',
+            'Qwen/Qwen3-VL-4B-Instruct',
+            'Qwen/Qwen3-VL-8B-Instruct',
+            'Qwen/Qwen3.5-9B-Instruct',
+            'google/gemma-3-4b-it',
+            'google/gemma-3-12b-it',
+            'mistralai/Pixtral-12B-2409',
+            'mistralai/Mistral-Small-3.1-24B-Instruct-2503'
+        ];
         const CROP_ASPECT_RATIOS = {
             '1:1': 1,
             '16:9': 16 / 9,
@@ -416,8 +460,12 @@ Expected outcome is a human-readable continuous text consisting of several sente
             grok: document.getElementById('api-key-grok'),
             openai: document.getElementById('api-key-openai'),
             claude: document.getElementById('api-key-claude'),
+            vllm: document.getElementById('api-key-vllm'),
             wd14: document.getElementById('api-key-wd14')
         };
+        const vllmEndpointInput = document.getElementById('vllm-endpoint');
+        const vllmModelPresetSelect = document.getElementById('vllm-model-preset');
+        const vllmModelTypeInput = document.getElementById('vllm-model-type');
         const ddThreshold = document.getElementById('ddThreshold');
         const wdGeneralThresh = document.getElementById('wdGeneralThresh');
         const wdCharThresh = document.getElementById('wdCharThresh');
@@ -488,6 +536,8 @@ Expected outcome is a human-readable continuous text consisting of several sente
         closeSettingsBtn.addEventListener('click', closeSettings);
         saveSettingsBtn.addEventListener('click', saveSettings);
         Object.values(apiKeyInputs).forEach(input => input.addEventListener('input', updateSettingsFields));
+        vllmModelPresetSelect.addEventListener('change', applyVllmModelPreset);
+        vllmModelTypeInput.addEventListener('input', syncVllmModelPreset);
 
         imageUpload.addEventListener('change', handleImageUpload);
         zipUpload.addEventListener('change', handleZipUpload);
@@ -579,6 +629,9 @@ Expected outcome is a human-readable continuous text consisting of several sente
             cropWidthInput.value = localStorage.getItem('cropWidth') || '1024';
             tagSystemPrompt.value = localStorage.getItem('tagSystemPrompt') || DEFAULT_TAG_PROMPT;
             captionSystemPrompt.value = localStorage.getItem('captionSystemPrompt') || DEFAULT_CAPTION_PROMPT;
+            vllmEndpointInput.value = localStorage.getItem('vllmEndpoint') || '';
+            vllmModelTypeInput.value = localStorage.getItem('vllmModelType') || VLLM_DEFAULT_MODEL;
+            syncVllmModelPreset();
             ddThreshold.value = localStorage.getItem('ddThreshold') || '0.5';
             wdGeneralThresh.value = localStorage.getItem('wdGeneralThresh') || '0.35';
             wdCharThresh.value = localStorage.getItem('wdCharThresh') || '0.85';
@@ -586,6 +639,17 @@ Expected outcome is a human-readable continuous text consisting of several sente
                 apiKeyInputs[model].value = localStorage.getItem(getProviderKeyStorageName(model)) || '';
             });
             updateSettingsFields();
+        }
+
+        function applyVllmModelPreset() {
+            if (vllmModelPresetSelect.value) {
+                vllmModelTypeInput.value = vllmModelPresetSelect.value;
+            }
+        }
+
+        function syncVllmModelPreset() {
+            const modelType = vllmModelTypeInput.value.trim();
+            vllmModelPresetSelect.value = VLLM_MODEL_PRESETS.includes(modelType) ? modelType : '';
         }
 
         function openSettings() {
@@ -610,6 +674,8 @@ Expected outcome is a human-readable continuous text consisting of several sente
             localStorage.setItem('cropWidth', String(getCropWidth()));
             localStorage.setItem('tagSystemPrompt', tagSystemPrompt.value.trim());
             localStorage.setItem('captionSystemPrompt', captionSystemPrompt.value.trim());
+            localStorage.setItem('vllmEndpoint', vllmEndpointInput.value.trim());
+            localStorage.setItem('vllmModelType', vllmModelTypeInput.value.trim() || VLLM_DEFAULT_MODEL);
             localStorage.setItem('ddThreshold', ddThreshold.value);
             localStorage.setItem('wdGeneralThresh', wdGeneralThresh.value);
             localStorage.setItem('wdCharThresh', wdCharThresh.value);
@@ -623,6 +689,20 @@ Expected outcome is a human-readable continuous text consisting of several sente
         function getModel() { return getTagModel(); }
         function getApiKey(model = getModel()) { return localStorage.getItem(getProviderKeyStorageName(model)) || ''; }
         function getWDKey() { return getApiKey('wd14'); }
+        function getVllmModelType() { return localStorage.getItem('vllmModelType') || VLLM_DEFAULT_MODEL; }
+
+        function getVllmEndpoint() {
+            const endpoint = (localStorage.getItem('vllmEndpoint') || '').trim();
+            if (!endpoint) throw new Error('vLLM endpoint URL required');
+            return normalizeVllmEndpoint(endpoint);
+        }
+
+        function normalizeVllmEndpoint(endpoint) {
+            const trimmed = endpoint.replace(/\/+$/, '');
+            if (/\/v1\/chat\/completions$/.test(trimmed)) return trimmed;
+            if (/\/v1$/.test(trimmed)) return `${trimmed}/chat/completions`;
+            return `${trimmed}/v1/chat/completions`;
+        }
 
         function getIntegerSetting(input, fallback, min, max) {
             const parsed = parseInt(input.value, 10);
@@ -712,6 +792,18 @@ Limit the caption to ${maxWords} words or fewer.`;
                 .trim();
         }
 
+        function extractChatCompletionText(data) {
+            const content = data?.choices?.[0]?.message?.content;
+            if (typeof content === 'string') return content.trim();
+            if (Array.isArray(content)) {
+                return content
+                    .map(part => typeof part.text === 'string' ? part.text : '')
+                    .join('\n')
+                    .trim();
+            }
+            return '';
+        }
+
         function getImageMimeType(file) {
             if (file.type && file.type.startsWith('image/')) return file.type;
             const name = (file.name || '').toLowerCase();
@@ -797,6 +889,28 @@ Limit the caption to ${maxWords} words or fewer.`;
                     });
                     const data = await readProviderJson(resp, 'Claude');
                     return extractClaudeText(data);
+                }
+            },
+            vllm: {
+                name: 'vLLM',
+                async request({ apiKey, promptText, base64 }) {
+                    const resp = await fetch(getVllmEndpoint(), {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+                        body: JSON.stringify({
+                            model: getVllmModelType(),
+                            messages: [{
+                                role: 'user',
+                                content: [
+                                    { type: 'text', text: promptText },
+                                    { type: 'image_url', image_url: { url: base64 } }
+                                ]
+                            }],
+                            max_tokens: 300
+                        })
+                    });
+                    const data = await readProviderJson(resp, 'vLLM');
+                    return extractChatCompletionText(data);
                 }
             }
         };

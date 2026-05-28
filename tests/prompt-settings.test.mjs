@@ -43,6 +43,9 @@ async function loadTagPilot({ selectedModel = 'openai', initialStore = {}, fetch
         grokApiKey: initialStore.grokApiKey || 'test-key',
         openaiApiKey: initialStore.openaiApiKey || 'test-key',
         claudeApiKey: initialStore.claudeApiKey || 'test-key',
+        vllmApiKey: initialStore.vllmApiKey || 'test-key',
+        vllmEndpoint: initialStore.vllmEndpoint || 'https://pod-8000.proxy.runpod.net/v1/chat/completions',
+        vllmModelType: initialStore.vllmModelType || 'Qwen/Qwen3-8B',
         ...initialStore,
     }));
 
@@ -185,6 +188,7 @@ globalThis.__tagpilotTest = {
     getCaptionModel,
     openCrop,
     saveCrop,
+    applyVllmModelPreset: typeof applyVllmModelPreset === 'function' ? applyVllmModelPreset : null,
     getTextProviderIds,
     autotagSingle,
     captionSingle,
@@ -302,10 +306,35 @@ test('Claude uses the Anthropic Messages API with browser vision support', async
     assert.equal(body.messages[0].content[1].text.includes('CLAUDE TAG PROMPT'), true);
 });
 
+test('vLLM uses the configured OpenAI-compatible chat completions endpoint', async () => {
+    const { context, elements, fetchCalls } = await loadTagPilot({
+        selectedModel: 'vllm',
+        initialStore: {
+            vllmApiKey: 'sk-pod123',
+            vllmEndpoint: 'https://pod123-8000.proxy.runpod.net/v1/chat/completions',
+            vllmModelType: 'Qwen/Qwen3-8B',
+        },
+    });
+    elements.get('tag-system-prompt').value = 'VLLM TAG PROMPT';
+    context.__tagpilotTest.setDataset([{ file: { name: 'image.png', type: 'image/png' }, tags: '', type: 'tags' }]);
+
+    await context.__tagpilotTest.startBatchTagging();
+
+    assert.equal(fetchCalls[0].url, 'https://pod123-8000.proxy.runpod.net/v1/chat/completions');
+    assert.equal(fetchCalls[0].headers.Authorization, 'Bearer sk-pod123');
+    const body = JSON.parse(fetchCalls[0].body);
+    assert.equal(body.model, 'Qwen/Qwen3-8B');
+    assert.equal(body.max_tokens, 300);
+    assert.equal(body.messages[0].content[0].type, 'text');
+    assert.equal(body.messages[0].content[0].text.includes('VLLM TAG PROMPT'), true);
+    assert.equal(body.messages[0].content[1].type, 'image_url');
+    assert.equal(body.messages[0].content[1].image_url.url, 'data:image/png;base64,AAAA');
+});
+
 test('LLM providers are registered in one provider map', async () => {
     const { context } = await loadTagPilot();
 
-    assert.deepEqual(Array.from(context.__tagpilotTest.getTextProviderIds()), ['gemini', 'grok', 'openai', 'claude']);
+    assert.deepEqual(Array.from(context.__tagpilotTest.getTextProviderIds()), ['gemini', 'grok', 'openai', 'claude', 'vllm']);
 });
 
 test('settings modal exposes tagging options, captioning options, and provider key table', async () => {
@@ -332,6 +361,15 @@ test('settings modal exposes tagging options, captioning options, and provider k
     assert.match(html, /id="api-key-grok"/);
     assert.match(html, /id="api-key-openai"/);
     assert.match(html, /id="api-key-claude"/);
+    assert.match(html, /id="api-key-vllm"/);
+    assert.match(html, /id="vllm-endpoint"/);
+    assert.match(html, /id="vllm-model-preset"/);
+    assert.match(html, /id="vllm-model-type"/);
+    assert.match(html, /Qwen\/Qwen2\.5-VL-3B-Instruct/);
+    assert.match(html, /Qwen\/Qwen3-VL-4B-Instruct/);
+    assert.match(html, /Qwen\/Qwen3\.5-9B-Instruct/);
+    assert.match(html, /google\/gemma-3-4b-it/);
+    assert.match(html, /mistralai\/Pixtral-12B-2409/);
     assert.match(html, /id="api-key-wd14"/);
     assert.doesNotMatch(html, /id="modelSelect"/);
     assert.doesNotMatch(html, /id="apiKeyInput"/);
@@ -345,6 +383,9 @@ test('settings key table loads saved provider API keys', async () => {
             grokApiKey: 'grok-key',
             openaiApiKey: 'openai-key',
             claudeApiKey: 'claude-key',
+            vllmApiKey: 'vllm-key',
+            vllmEndpoint: 'https://pod123-8000.proxy.runpod.net/v1/chat/completions',
+            vllmModelType: 'Qwen/Qwen3-8B',
             wd14ApiKey: 'wd14-key',
         },
     });
@@ -355,7 +396,52 @@ test('settings key table loads saved provider API keys', async () => {
     assert.equal(elements.get('api-key-grok').value, 'grok-key');
     assert.equal(elements.get('api-key-openai').value, 'openai-key');
     assert.equal(elements.get('api-key-claude').value, 'claude-key');
+    assert.equal(elements.get('api-key-vllm').value, 'vllm-key');
+    assert.equal(elements.get('vllm-endpoint').value, 'https://pod123-8000.proxy.runpod.net/v1/chat/completions');
+    assert.equal(elements.get('vllm-model-type').value, 'Qwen/Qwen3-8B');
     assert.equal(elements.get('api-key-wd14').value, 'wd14-key');
+});
+
+test('settings can save vLLM endpoint, model type, and API key', async () => {
+    const { context, elements, fetchCalls, localStore } = await loadTagPilot({ selectedModel: 'gemini' });
+
+    context.__tagpilotTest.openSettings();
+    elements.get('tag-default-model').value = 'vllm';
+    elements.get('caption-default-model').value = 'vllm';
+    elements.get('api-key-vllm').value = 'sk-custom';
+    elements.get('vllm-endpoint').value = 'https://custom-8000.proxy.runpod.net';
+    elements.get('vllm-model-type').value = 'Qwen/Qwen3-8B';
+
+    context.__tagpilotTest.saveSettings();
+
+    assert.equal(localStore.get('tagModel'), 'vllm');
+    assert.equal(localStore.get('captionModel'), 'vllm');
+    assert.equal(localStore.get('vllmApiKey'), 'sk-custom');
+    assert.equal(localStore.get('vllmEndpoint'), 'https://custom-8000.proxy.runpod.net');
+    assert.equal(localStore.get('vllmModelType'), 'Qwen/Qwen3-8B');
+
+    context.__tagpilotTest.setDataset([{ file: { name: 'image.png', type: 'image/png' }, tags: '', type: 'tags' }]);
+    await context.__tagpilotTest.startBatchTagging();
+
+    assert.equal(fetchCalls[0].url, 'https://custom-8000.proxy.runpod.net/v1/chat/completions');
+    assert.equal(fetchCalls[0].headers.Authorization, 'Bearer sk-custom');
+    assert.equal(JSON.parse(fetchCalls[0].body).model, 'Qwen/Qwen3-8B');
+});
+
+test('vLLM model presets fill and save the model type field', async () => {
+    const { context, elements, localStore } = await loadTagPilot();
+
+    context.__tagpilotTest.openSettings();
+    elements.get('vllm-model-preset').value = 'google/gemma-3-4b-it';
+    context.__tagpilotTest.applyVllmModelPreset();
+    elements.get('api-key-vllm').value = 'sk-custom';
+    elements.get('vllm-endpoint').value = 'https://custom-8000.proxy.runpod.net';
+
+    assert.equal(elements.get('vllm-model-type').value, 'google/gemma-3-4b-it');
+
+    context.__tagpilotTest.saveSettings();
+
+    assert.equal(localStore.get('vllmModelType'), 'google/gemma-3-4b-it');
 });
 
 test('settings can save separate default models for tagging and captioning', async () => {

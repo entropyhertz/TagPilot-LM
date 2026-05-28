@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Added a **vLLM OpenAI compatible** provider for local/Runpod models.
+- Added Settings fields for vLLM endpoint URL, model type, and API key.
+- Defaulted the vLLM model type to `Qwen/Qwen3-8B` and normalized Runpod base URLs to `/v1/chat/completions`.
+- Added a vLLM model preset dropdown for Qwen2.5-VL, Qwen3-VL, Qwen3.5, Gemma 3, Pixtral, and Mistral Small models.
+- Added `vllm.md` with Runpod and local multimodal vLLM setup notes.
+
 ## v2.0 - 2026-05-10
 
 - Reworked Settings into dedicated **Tagging Options** and **Captioning Options** sections.
