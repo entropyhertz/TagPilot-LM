@@ -1,5 +1,39 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- LM Studio same-machine Windows provider
+- optional Windows-hosted LAN mode
+- connection testing
+- exact model detection
+- one-image verification
+- sequential caption batching
+- caption cleanup and validation
+- Krea-2 character-LoRA caption prompt
+- operator-controlled trigger insertion at export
+
+### Changed
+
+- made Windows same-machine use the primary workflow
+- separated tagging and captioning provider defaults
+- replaced speculative LM Studio model IDs with discovered IDs
+- replaced inaccurate GUI instructions with CLI setup
+- improved batch reporting and error visibility
+- made URL validation connection-mode aware
+
+### Preserved
+
+- upstream upload workflow
+- ZIP handling
+- cropping
+- tag editing
+- caption editing
+- cloud and vLLM providers
+- dataset export
+- single-file architecture
+
 ## v2.2 - 2026-05-28
 
 - Added a **vLLM OpenAI compatible** provider for local/Runpod models.
