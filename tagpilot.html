@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TagPilot ✈️</title>
+    <title>TagPilot-LM ✈️</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -36,7 +36,7 @@
     </div>
 
     <div id="lora-pilot-family-link" class="fixed bottom-3 right-3 z-[900] text-xs text-gray-500">
-        Part of <a href="https://github.com/vavo/lora-pilot" target="_blank" rel="noopener noreferrer" class="text-gray-400 hover:text-indigo-300 underline underline-offset-2">Lora Pilot</a> family
+        Independent fork of <a href="https://github.com/vavo/TagPilot" target="_blank" rel="noopener noreferrer" class="text-gray-400 hover:text-indigo-300 underline underline-offset-2">TagPilot by vavo</a>
     </div>
 
     <!-- Settings Modal -->
@@ -49,6 +49,7 @@
                     <h3 class="text-lg font-semibold text-white mb-3">Tagging Options</h3>
                     <label class="block mb-2 text-sm text-gray-400">Default model</label>
                     <select id="tag-default-model" class="w-full bg-gray-700 p-2 rounded mb-4">
+                        <option value="lmstudio">LM Studio (local or LAN)</option>
                         <option value="gemini">Gemini</option>
                         <option value="grok">Grok</option>
                         <option value="openai">OpenAI</option>
@@ -67,6 +68,7 @@
                     <h3 class="text-lg font-semibold text-white mb-3">Captioning Options</h3>
                     <label class="block mb-2 text-sm text-gray-400">Default model</label>
                     <select id="caption-default-model" class="w-full bg-gray-700 p-2 rounded mb-4">
+                        <option value="lmstudio">LM Studio (local or LAN)</option>
                         <option value="gemini">Gemini</option>
                         <option value="grok">Grok</option>
                         <option value="openai">OpenAI</option>
@@ -74,11 +76,91 @@
                         <option value="vllm">vLLM OpenAI compatible</option>
                     </select>
                     <label class="block mb-2 text-sm text-gray-400">Max caption length (words)</label>
-                    <input type="number" id="setting-max-caption-len" value="50" min="5" max="200" class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-purple-500 mb-4">
+                    <input type="number" id="setting-max-caption-len" value="70" min="5" max="200" class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-purple-500 mb-4">
                     <label class="block mb-2 text-sm text-gray-400">System prompt</label>
                     <textarea id="caption-system-prompt" class="w-full h-40 bg-gray-900 border border-gray-600 rounded p-2 text-xs text-gray-300 focus:outline-none focus:border-purple-500"></textarea>
                 </section>
             </div>
+
+            <section class="border border-emerald-700/70 rounded-lg p-4 bg-emerald-950/20 mb-5">
+                <div class="mb-4">
+                    <h3 class="text-lg font-semibold text-white">LM Studio local captioning</h3>
+                    <p class="text-xs text-gray-400 mt-1">A single-file browser application designed primarily for Windows and compatible with macOS and Linux. The default workflow keeps TagPilot and LM Studio on the same Windows PC. No paid API provider is required.</p>
+                </div>
+
+                <div class="mb-4">
+                    <label for="lmstudio-connection-mode" class="block mb-2 text-sm text-gray-400">Connection mode</label>
+                    <select id="lmstudio-connection-mode" class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-emerald-500">
+                        <option value="same-machine">Same Windows PC</option>
+                        <option value="lan">Another device over LAN</option>
+                    </select>
+                </div>
+
+                <div id="lmstudio-same-machine-setup" class="bg-gray-900/70 border border-gray-700 rounded p-3 mb-4 text-xs text-gray-300 space-y-2">
+                    <p class="font-semibold text-emerald-300">Windows quick start — same PC</p>
+                    <p>Load a vision-capable model in LM Studio, open PowerShell, and start the local API server:</p>
+                    <pre class="bg-gray-950 border border-gray-700 rounded p-2 overflow-x-auto text-emerald-200"><code>lms server start --port 1234 --cors</code></pre>
+                    <p>Confirm it is running with <code>lms server status</code>. In the TagPilot-LM repository directory, serve this file locally:</p>
+                    <pre class="bg-gray-950 border border-gray-700 rounded p-2 overflow-x-auto text-gray-300"><code>py -m http.server 8765</code></pre>
+                    <p>If <code>py</code> is unavailable, use <code>python -m http.server 8765</code> or <code>python3 -m http.server 8765</code>.</p>
+                    <p class="text-amber-200">Python's HTTP server may listen on all interfaces by default. On an untrusted network, append <code>--bind 127.0.0.1</code> to restrict it to this PC.</p>
+                    <p>Open <code>http://127.0.0.1:8765/tagpilot.html</code> and use <code>http://127.0.0.1:1234</code> as the LM Studio URL.</p>
+                </div>
+
+                <div id="lmstudio-lan-setup" class="hidden bg-amber-950/30 border border-amber-700/70 rounded p-3 mb-4 text-xs text-gray-300 space-y-2">
+                    <p class="font-semibold text-amber-300">Optional advanced mode — another device over a private LAN</p>
+                    <p>On the Windows LM Studio host, run:</p>
+                    <pre class="bg-gray-950 border border-gray-700 rounded p-2 overflow-x-auto text-amber-200"><code>lms server start --bind 0.0.0.0 --port 1234 --cors</code></pre>
+                    <p>Confirm the server with <code>lms server status</code>, find the Windows IPv4 address with <code>ipconfig</code>, then enter <code>http://&lt;WINDOWS-IP&gt;:1234</code>.</p>
+                    <div class="border-l-4 border-red-500 pl-3 text-red-200 space-y-1">
+                        <p><strong>LAN security warning:</strong> <code>--bind 0.0.0.0</code> exposes LM Studio to the local network and <code>--cors</code> permits browser pages to call it.</p>
+                        <p>Use this only on a trusted private network. Do not expose port 1234 through the router. Stop the server when it is not needed on an untrusted network. Use authentication when available, and never commit tokens.</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label id="lmstudio-base-url-label" for="lmstudio-base-url" class="block mb-2 text-sm text-gray-400">Local LM Studio URL</label>
+                        <input type="url" id="lmstudio-base-url" value="http://127.0.0.1:1234" placeholder="http://127.0.0.1:1234" class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-emerald-500">
+                        <p id="lmstudio-base-url-help" class="text-xs text-gray-500 mt-1"><code>localhost</code>, <code>127.0.0.1</code>, and <code>::1</code> are valid when LM Studio runs on this same PC. <code>0.0.0.0</code> is never a destination URL.</p>
+                    </div>
+                    <div>
+                        <label for="lmstudio-api-token" class="block mb-2 text-sm text-gray-400">Optional LM Studio local server token</label>
+                        <input type="password" id="lmstudio-api-token" autocomplete="off" placeholder="Leave blank unless you configured authentication" class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-emerald-500">
+                        <p class="text-xs text-gray-500 mt-1">Only needed if authentication was separately configured on LM Studio. Kept in sessionStorage only; never commit tokens.</p>
+                    </div>
+                    <div class="md:col-span-2">
+                        <label for="lmstudio-model-id" class="block mb-2 text-sm text-gray-400">Detected model</label>
+                        <select id="lmstudio-model-id" class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-emerald-500">
+                            <option value="">Detect models first</option>
+                        </select>
+                        <p id="lmstudio-model-detail" class="text-xs text-gray-500 mt-1">No server model catalog has been checked.</p>
+                    </div>
+                    <div class="md:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <button id="test-lmstudio-connection" type="button" class="bg-slate-600 hover:bg-slate-500 disabled:opacity-50 disabled:cursor-wait text-white font-semibold px-4 py-2 rounded transition-colors">Test Connection</button>
+                        <button id="detect-lmstudio-models" type="button" class="bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-wait text-white font-semibold px-4 py-2 rounded transition-colors">Detect Models</button>
+                        <button id="test-lmstudio-image" type="button" class="bg-purple-700 hover:bg-purple-600 disabled:opacity-50 disabled:cursor-wait text-white font-semibold px-4 py-2 rounded transition-colors">Test One Image</button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-2 mt-4 text-xs" aria-live="polite">
+                    <div class="bg-gray-900/70 border border-gray-700 rounded p-2"><span class="text-gray-500">Connection:</span> <span id="lmstudio-connection-status" class="text-amber-300">not tested</span></div>
+                    <div class="bg-gray-900/70 border border-gray-700 rounded p-2"><span class="text-gray-500">Model:</span> <span id="lmstudio-model-status" class="text-amber-300">detect models first</span></div>
+                    <div class="bg-gray-900/70 border border-gray-700 rounded p-2"><span class="text-gray-500">Readiness:</span> <span id="lmstudio-readiness-status" class="text-amber-300">test one image first</span></div>
+                </div>
+                <p id="lmstudio-status-detail" class="text-xs text-gray-400 mt-3">Test the local connection, detect models, then test one uploaded image.</p>
+                <div id="lmstudio-test-result" class="hidden mt-3 bg-gray-900/70 border border-gray-700 rounded p-3">
+                    <p class="text-xs font-semibold text-purple-300 mb-1">Test caption</p>
+                    <p id="lmstudio-test-caption" class="text-sm text-gray-200 whitespace-pre-wrap"></p>
+                    <p id="lmstudio-test-caption-meta" class="text-xs text-gray-500 mt-2"></p>
+                </div>
+                <p id="lmstudio-mixed-content-warning" class="hidden text-xs text-red-300 mt-3">Browser request blocked: an HTTPS page cannot safely call an HTTP LM Studio endpoint. Open TagPilot-LM from <code>http://127.0.0.1:8765/tagpilot.html</code> instead.</p>
+
+                <div class="bg-gray-900/50 border border-gray-700 rounded p-3 mt-4 text-xs text-gray-400 space-y-2">
+                    <p><strong class="text-gray-300">Optional macOS and Linux launch:</strong> In the repository directory, run <code>python3 -m http.server 8765</code>, then open <code>http://127.0.0.1:8765/tagpilot.html</code>.</p>
+                    <p>macOS and Linux can run TagPilot-LM locally in the browser. If LM Studio is on another Windows PC, select <strong>Another device over LAN</strong> and follow the optional LAN setup above.</p>
+                </div>
+            </section>
 
             <section class="border border-gray-700 rounded-lg p-4 bg-gray-900/40 mb-5">
                 <h3 class="text-lg font-semibold text-white mb-3">Crop Options</h3>
@@ -105,7 +187,7 @@
             </section>
 
             <section class="border border-gray-700 rounded-lg p-4 bg-gray-900/40 mb-5">
-                <h3 class="text-lg font-semibold text-white mb-3">Model API Keys</h3>
+                <h3 class="text-lg font-semibold text-white mb-3">Cloud / Hosted Provider API Keys</h3>
                 <div class="overflow-x-auto">
                     <table id="model-api-key-table" class="w-full text-sm">
                         <thead class="text-gray-400">
@@ -138,7 +220,7 @@
                             </tr>
                             <tr>
                                 <td class="py-2 pr-4 text-gray-200">vLLM OpenAI compatible</td>
-                                <td class="py-2 pr-4"><input type="password" id="api-key-vllm" placeholder="sk-pod-id" class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-indigo-500"></td>
+                                <td class="py-2 pr-4"><input type="password" id="api-key-vllm" placeholder="Enter the configured vLLM API key" class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-indigo-500"></td>
                                 <td class="py-2 text-xs text-gray-500" data-key-status="vllm">Not saved</td>
                             </tr>
                             <tr>
@@ -171,7 +253,7 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 pt-4 border-t border-gray-700">
                     <div>
                         <label class="block mb-2 text-sm text-gray-400">vLLM endpoint URL</label>
-                        <input type="url" id="vllm-endpoint" placeholder="https://pod-id-8000.proxy.runpod.net" class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-indigo-500">
+                        <input type="url" id="vllm-endpoint" placeholder="https://your-host.example/v1/chat/completions" class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-indigo-500">
                     </div>
                     <div>
                         <label class="block mb-2 text-sm text-gray-400">vLLM model preset</label>
@@ -190,7 +272,8 @@
                     </div>
                     <div class="md:col-span-2">
                         <label class="block mb-2 text-sm text-gray-400">vLLM model type</label>
-                        <input type="text" id="vllm-model-type" value="Qwen/Qwen3-8B" placeholder="Qwen/Qwen3-8B" class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-indigo-500">
+                        <input type="text" id="vllm-model-type" placeholder="Exact vision-capable model ID served by vLLM" class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-indigo-500">
+                        <p class="text-xs text-gray-500 mt-1">Preserved upstream provider. This model ID is separate from LM Studio's discovered model catalog.</p>
                     </div>
                 </div>
             </section>
@@ -208,8 +291,8 @@
 
     <div class="container mx-auto p-4 md:p-8">
         <header class="text-center mb-8">
-            <h1 class="text-4xl font-bold text-white mb-2">TagPilot ✈️</h1>
-            <p class="text-lg text-gray-400">Advanced LoRA Dataset Tagger</p>
+            <h1 class="text-4xl font-bold text-white mb-2">TagPilot-LM ✈️</h1>
+            <p class="text-lg text-gray-400">Windows-first local LoRA captioning and tagging</p>
         </header>
 
         <div class="bg-gray-800 p-6 rounded-lg shadow-lg mb-8">
@@ -247,7 +330,7 @@
                         </button>
                         <div class="relative flex items-center">
                             <span id="trigger-word-label" class="absolute left-3 text-gray-400 text-sm">Trigger Word:</span>
-                            <input type="text" id="trigger-word-input" placeholder="e.g. ohwx man" class="bg-gray-700 border border-gray-600 rounded-md py-2 pl-24 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 w-40 sm:w-48">
+                            <input type="text" id="trigger-word-input" placeholder="e.g. ohwx man" title="Operator-controlled token applied exactly once during export; it is not sent to tagging or captioning models." class="bg-gray-700 border border-gray-600 rounded-md py-2 pl-24 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 w-40 sm:w-48">
                         </div>
                         <div class="relative flex items-center">
                             <span id="dataset-name-label" class="absolute left-3 text-gray-400 text-sm">Dataset Name:</span>
@@ -396,7 +479,12 @@
         let cropper = null;
         let currentCropItemId = null;
         let currentPreviewItemId = null;
+        let lastFocusedDatasetItemId = null;
         let nextDatasetItemId = 1;
+        let activeLocalRequestController = null;
+        let lmStudioDetectedCatalog = null;
+        let lmStudioReadySignature = '';
+        let lmStudioLastTestedItemId = null;
         const fileObjectUrls = new Map();
         const transientObjectUrls = new Set();
 
@@ -410,7 +498,7 @@ Follow these rules strictly:
 
 The final output MUST be a comma-separated list of tags. No comments, no 'Here is:', no 'Let me know..'. Just a list of comma separated tags.`;
 
-        const DEFAULT_CAPTION_PROMPT = `You are an expert for creating photorealistic AI training datasets. Your task is to generate descriptive caption for the provided image for the purpose of Lora training using tools like kohya_ss, OneTrainer or diffusion pipes. Follow these rules strictly:
+        const LEGACY_DEFAULT_CAPTION_PROMPT = `You are an expert for creating photorealistic AI training datasets. Your task is to generate descriptive caption for the provided image for the purpose of Lora training using tools like kohya_ss, OneTrainer or diffusion pipes. Follow these rules strictly:
 
 1. Information sufficiency: Captions should include all meaningful content and be comprehensive, especially for complex scenes that may be overlooked by general captions.
 2. Minimal redundancy: Captions should be concise and avoid unnecessary repetition of information.
@@ -420,11 +508,115 @@ The final output MUST be a comma-separated list of tags. No comments, no 'Here i
 
 Expected outcome is a human-readable continuous text consisting of several sentences without the use of numbering or bullet points.`;
 
-        const TEXT_MODEL_IDS = ['gemini', 'grok', 'openai', 'claude', 'vllm'];
+        const DEFAULT_CAPTION_PROMPT = `<task>
+You caption images for a Krea-2 character LoRA dataset. You receive ONE image and its filename. You output ONE plain natural-language caption and nothing else.
+</task>
+
+<output_format>
+Output ONLY the caption text.
+Do NOT output any character name, trigger word, or placeholder token. A script adds the identity token later. Never write [TRIGGER] or [trigger].
+No preamble such as "Here is the caption." No quotes around the caption. No Markdown. No JSON. No labels. No filename echo. No line breaks.
+One or two fluent sentences, present tense. Pronouns like "her" are fine; do not open with "a woman" or "a photo of". The subject is implied.
+Length: 30 to 70 words for standard images. 12 to 30 words for face crops.
+</output_format>
+
+<slot_order>
+Build every caption in this exact order. Skip a slot only if it is not visible.
+1. Framing term, plus view angle when clear
+2. Expression phrase
+3. Pose and action
+4. Hair (see hair_rule)
+5. Clothing and accessories
+6. Setting, background, and props
+7. Lighting
+8. Photographic or visual style, only when obvious
+</slot_order>
+
+<core_rule>
+The same woman appears in every image. Her stable identity is carried by a separate token added after captioning. Your caption must describe only what VARIES between images.
+
+Never describe stable identity traits:
+face shape, facial structure, eye color, skin tone, body type, age impression, beauty descriptors of any kind.
+
+Describe every variable detail you can see. Any variable detail you omit may become incorrectly glued to her identity.
+</core_rule>
+
+<hair_rule>
+Hair is a VARIABLE, not identity. When hair is visible, describe it plainly in slot 4 using simple color, length, and arrangement terms. Examples: "long straight black hair", "black hair tied back", "black hair loose over her shoulders". No texture poetry. No beauty language.
+</hair_rule>
+<!-- OPERATOR TOGGLE: to weld hair to identity instead, delete hair_rule, remove slot 4,
+     and add hair terms to the never-describe list in core_rule. Default is VARIABLE. -->
+
+<makeup_rule>
+Do not mention makeup.
+</makeup_rule>
+<!-- OPERATOR TOGGLE: if makeup visibly varies across this dataset, replace the line above with:
+     "If makeup is clearly visible, describe it plainly, e.g. dark red lipstick." Default is omit. -->
+
+<expression_rule>
+Describe her expression in every caption. Use one of these exact phrases when it fits:
+a neutral resting expression / a faint closed-mouth smile / a subtle eye-smile / a calm focused expression / a soft contemplative expression / a quietly confident expression / a mild curious expression / a faint smirk / an open laughing smile / a serious intent expression / a raised-eyebrow look of surprise / eyes closed, relaxed
+If none fit, use a simple visible expression phrase without describing facial features.
+</expression_rule>
+
+<framing_terms>
+Use one of: close up portrait / head and shoulders portrait / waist-up shot / three-quarter shot / full-body shot / wide shot.
+Add a view angle when clear: front view / three-quarter view / profile view / from behind / looking over her shoulder.
+</framing_terms>
+
+<clothing_rules>
+Describe clothing clearly and consistently. Use "black" when the clothing is black; never substitute "dark" for black.
+Use these exact terms when they match what is visible:
+black tank top / black fitted T-shirt / black ribbed long-sleeve shirt / black hoodie / black cardigan / black flannel shirt / black oversized sweater / black denim jacket / worn black leather jacket / black jeans / black skirt / black tights / black boots / black sneakers
+If clothing differs from the list, describe only what is clearly visible. If clothing is not visible, do not invent it.
+</clothing_rules>
+
+<no_guess_rule>
+If any detail is unclear, occluded, or ambiguous, omit it entirely. Never guess.
+Never use hedge words: appears, seems, possibly, likely, maybe, perhaps.
+Never state what is absent. No phrases like "no accessories" or "not smiling".
+Never use meta phrases: "in this image", "the image shows", "the photo depicts", "we can see", "is shown".
+Never output bounding boxes, coordinates, detector labels, OCR fragments, color palettes, camera model guesses, or JSON fields.
+</no_guess_rule>
+
+<filename_rule>
+This rule overrides slot_order and the length target.
+If the filename contains "facecrop":
+Start with "close up portrait," then describe only the expression, hair if visible, any visible collar or neckline, the background, and the lighting. Nothing outside the crop. No body pose, no full outfit, no hands, no objects, no environment. 12 to 30 words.
+Otherwise: choose the visible framing term and follow the full slot_order.
+</filename_rule>
+
+<examples>
+GOOD
+Filename: img_044.png
+full-body shot, front view, a neutral resting expression, standing at a kitchen counter pouring coffee into a ceramic mug, black hair loose over her shoulders, wearing a black fitted T-shirt and black jeans, a cast iron pan on the stove behind her, soft morning light.
+
+GOOD
+Filename: facecrop_012.png
+close up portrait, a faint closed-mouth smile, black hair pulled back, a black T-shirt collar visible at the bottom of the frame, plain background, soft even daylight.
+
+GOOD
+Filename: img_031.png
+full-body shot, three-quarter view, a quietly confident expression, walking along a city sidewalk with both hands in her pockets, long straight black hair, wearing a worn black leather jacket over a black T-shirt with black jeans and black boots, blurred storefronts behind her, flat overcast light.
+
+BAD
+Here is the caption: a pale young woman with blue eyes and a beautiful face smiles warmly at the camera, her features soft and striking.
+
+WHY BAD
+Preamble, stable identity traits, beauty language, no framing term, no variable scene detail, and it guesses at qualities instead of describing what changes.
+</examples>
+
+<final_reminder>
+Output only the caption, one line, in slot order. No trigger token. Never describe face structure, eye color, skin tone, body type, or age. Hair is variable: describe it when visible. Omit anything unclear. No JSON, no metadata, no meta phrases, no negations.
+</final_reminder>`;
+
+        const LMSTUDIO_DEFAULT_CONNECTION_MODE = 'same-machine';
+        const LMSTUDIO_DEFAULT_BASE_URL = 'http://127.0.0.1:1234';
+        const LMSTUDIO_LAN_EXAMPLE_URL = 'http://192.168.1.50:1234';
+        const TEXT_MODEL_IDS = ['lmstudio', 'gemini', 'grok', 'openai', 'claude', 'vllm'];
         const TAG_MODEL_IDS = [...TEXT_MODEL_IDS, 'deepdanbooru', 'wd14'];
-        const API_KEY_MODEL_IDS = [...TEXT_MODEL_IDS, 'wd14'];
+        const API_KEY_MODEL_IDS = ['gemini', 'grok', 'openai', 'claude', 'vllm', 'wd14'];
         const DEEPDANBOORU_API_BASE = 'https://hysts-deepdanbooru.hf.space/gradio_api';
-        const VLLM_DEFAULT_MODEL = 'Qwen/Qwen3-8B';
         const VLLM_MODEL_PRESETS = [
             'Qwen/Qwen2.5-VL-3B-Instruct',
             'Qwen/Qwen2.5-VL-7B-Instruct',
@@ -466,6 +658,26 @@ Expected outcome is a human-readable continuous text consisting of several sente
         const vllmEndpointInput = document.getElementById('vllm-endpoint');
         const vllmModelPresetSelect = document.getElementById('vllm-model-preset');
         const vllmModelTypeInput = document.getElementById('vllm-model-type');
+        const lmStudioConnectionModeSelect = document.getElementById('lmstudio-connection-mode');
+        const lmStudioSameMachineSetup = document.getElementById('lmstudio-same-machine-setup');
+        const lmStudioLanSetup = document.getElementById('lmstudio-lan-setup');
+        const lmStudioBaseUrlLabel = document.getElementById('lmstudio-base-url-label');
+        const lmStudioBaseUrlHelp = document.getElementById('lmstudio-base-url-help');
+        const lmStudioBaseUrlInput = document.getElementById('lmstudio-base-url');
+        const lmStudioModelIdInput = document.getElementById('lmstudio-model-id');
+        const lmStudioApiTokenInput = document.getElementById('lmstudio-api-token');
+        const lmStudioConnectionButton = document.getElementById('test-lmstudio-connection');
+        const lmStudioDetectButton = document.getElementById('detect-lmstudio-models');
+        const lmStudioImageTestButton = document.getElementById('test-lmstudio-image');
+        const lmStudioConnectionStatus = document.getElementById('lmstudio-connection-status');
+        const lmStudioModelStatus = document.getElementById('lmstudio-model-status');
+        const lmStudioReadinessStatus = document.getElementById('lmstudio-readiness-status');
+        const lmStudioStatusDetail = document.getElementById('lmstudio-status-detail');
+        const lmStudioModelDetail = document.getElementById('lmstudio-model-detail');
+        const lmStudioTestResult = document.getElementById('lmstudio-test-result');
+        const lmStudioTestCaption = document.getElementById('lmstudio-test-caption');
+        const lmStudioTestCaptionMeta = document.getElementById('lmstudio-test-caption-meta');
+        const lmStudioMixedContentWarning = document.getElementById('lmstudio-mixed-content-warning');
         const ddThreshold = document.getElementById('ddThreshold');
         const wdGeneralThresh = document.getElementById('wdGeneralThresh');
         const wdCharThresh = document.getElementById('wdCharThresh');
@@ -538,6 +750,17 @@ Expected outcome is a human-readable continuous text consisting of several sente
         Object.values(apiKeyInputs).forEach(input => input.addEventListener('input', updateSettingsFields));
         vllmModelPresetSelect.addEventListener('change', applyVllmModelPreset);
         vllmModelTypeInput.addEventListener('input', syncVllmModelPreset);
+        lmStudioConnectionButton.addEventListener('click', testLMStudioConnection);
+        lmStudioDetectButton.addEventListener('click', discoverLMStudioModels);
+        lmStudioImageTestButton.addEventListener('click', testOneImageWithLMStudio);
+        lmStudioConnectionModeSelect.addEventListener('change', handleLMStudioConnectionModeChange);
+        [lmStudioBaseUrlInput, lmStudioApiTokenInput].forEach(input => {
+            input.addEventListener('input', handleLMStudioConnectionInput);
+        });
+        lmStudioModelIdInput.addEventListener('change', invalidateLMStudioReadiness);
+        captionSystemPrompt.addEventListener('input', invalidateLMStudioReadiness);
+        settingMaxCaptionLen.addEventListener('input', invalidateLMStudioReadiness);
+        captionDefaultModel.addEventListener('change', updateCaptionBatchAvailability);
 
         imageUpload.addEventListener('change', handleImageUpload);
         zipUpload.addEventListener('change', handleZipUpload);
@@ -589,7 +812,7 @@ Expected outcome is a human-readable continuous text consisting of several sente
             if (isTagModel(saved)) return saved;
             const legacy = localStorage.getItem('selectedModel');
             if (isTagModel(legacy)) return legacy;
-            return 'gemini';
+            return 'lmstudio';
         }
 
         function getSavedCaptionModel() {
@@ -597,7 +820,7 @@ Expected outcome is a human-readable continuous text consisting of several sente
             if (isCaptionModel(saved)) return saved;
             const legacy = localStorage.getItem('selectedModel');
             if (isCaptionModel(legacy)) return legacy;
-            return 'gemini';
+            return 'lmstudio';
         }
 
         function getSavedCropAspectRatio() {
@@ -620,18 +843,208 @@ Expected outcome is a human-readable continuous text consisting of several sente
             });
         }
 
+        function createLMStudioError(code, message, detail = '') {
+            const error = new Error(message);
+            error.code = code;
+            error.detail = detail || message;
+            return error;
+        }
+
+        function setLMStudioStatusElement(element, message, state = 'idle') {
+            element.textContent = message;
+            element.classList.toggle('text-emerald-300', state === 'success');
+            element.classList.toggle('text-red-300', state === 'error');
+            element.classList.toggle('text-purple-300', state === 'review');
+            element.classList.toggle('text-amber-300', state === 'idle' || state === 'working');
+        }
+
+        function setLMStudioConnectionStatus(message, state = 'idle', detail = '') {
+            setLMStudioStatusElement(lmStudioConnectionStatus, message, state);
+            if (detail) lmStudioStatusDetail.textContent = detail;
+        }
+
+        function setLMStudioModelStatus(message, state = 'idle', detail = '') {
+            setLMStudioStatusElement(lmStudioModelStatus, message, state);
+            if (detail) lmStudioModelDetail.textContent = detail;
+        }
+
+        function setLMStudioReadinessStatus(message, state = 'idle', detail = '') {
+            setLMStudioStatusElement(lmStudioReadinessStatus, message, state);
+            if (detail) lmStudioStatusDetail.textContent = detail;
+        }
+
+        function setLMStudioControlBusy(button, busy, busyText) {
+            if (!button.dataset.idleText) button.dataset.idleText = button.textContent;
+            button.disabled = busy;
+            button.textContent = busy ? busyText : button.dataset.idleText;
+        }
+
+        function describeLMStudioModel(model) {
+            const state = model.isLoaded === true ? 'loaded' : (model.isLoaded === false ? 'available, not loaded' : 'load state unverified');
+            const vision = model.visionKnown ? (model.isVision ? 'vision confirmed' : 'no vision') : 'vision unverified';
+            const displayName = model.label && model.label !== model.id ? ` — ${model.label}` : '';
+            return `${model.id}${displayName} · ${state} · ${vision}`;
+        }
+
+        function resetLMStudioModelSelector(models = [], selectedId = '') {
+            lmStudioModelIdInput.innerHTML = '';
+            const placeholderOption = document.createElement('option');
+            placeholderOption.value = '';
+            placeholderOption.textContent = 'Detect models first';
+            lmStudioModelIdInput.appendChild(placeholderOption);
+            models.forEach(model => {
+                const option = document.createElement('option');
+                option.value = model.id;
+                option.textContent = describeLMStudioModel(model);
+                lmStudioModelIdInput.appendChild(option);
+            });
+            lmStudioModelIdInput.value = models.some(model => model.id === selectedId) ? selectedId : '';
+        }
+
+        function isKnownPreviousDefaultCaptionPrompt(value) {
+            if (!value || value === LEGACY_DEFAULT_CAPTION_PROMPT) return true;
+            return value.startsWith('You are a strict multimodal captioning engine for a Krea-2 character LoRA dataset.')
+                && value.endsWith('Then output only that caption.');
+        }
+
+        function normalizeHostname(hostname) {
+            return String(hostname || '').trim().toLowerCase().replace(/\.$/, '');
+        }
+
+        function isLoopbackHostname(hostname) {
+            const host = normalizeHostname(hostname);
+            return host === 'localhost'
+                || host === '::1'
+                || host === '[::1]'
+                || /^127(?:\.\d{1,3}){3}$/.test(host)
+                || /^\[?::ffff:(?:127\.|7f[0-9a-f]{2}:)/i.test(host);
+        }
+
+        function isUnspecifiedHostname(hostname) {
+            const host = normalizeHostname(hostname);
+            return host === '0.0.0.0' || host === '::' || host === '[::]';
+        }
+
+        function isPrivateIPv4Hostname(hostname) {
+            const parts = normalizeHostname(hostname).split('.');
+            if (parts.length !== 4 || parts.some(part => !/^\d{1,3}$/.test(part))) return false;
+            const octets = parts.map(Number);
+            if (octets.some(octet => octet < 0 || octet > 255)) return false;
+            return octets[0] === 10
+                || (octets[0] === 172 && octets[1] >= 16 && octets[1] <= 31)
+                || (octets[0] === 192 && octets[1] === 168);
+        }
+
+        function inferLMStudioConnectionMode(savedUrl) {
+            if (!savedUrl) return LMSTUDIO_DEFAULT_CONNECTION_MODE;
+            try {
+                const parsed = new URL(savedUrl);
+                return isLoopbackHostname(parsed.hostname) ? 'same-machine' : 'lan';
+            } catch (error) {
+                return LMSTUDIO_DEFAULT_CONNECTION_MODE;
+            }
+        }
+
+        function getLMStudioConnectionMode(useCurrentFields = false) {
+            if (useCurrentFields) return lmStudioConnectionModeSelect.value === 'lan' ? 'lan' : 'same-machine';
+            const saved = localStorage.getItem('lmStudioConnectionMode');
+            if (saved === 'lan' || saved === 'same-machine') return saved;
+            return inferLMStudioConnectionMode(localStorage.getItem('lmStudioBaseUrl'));
+        }
+
+        function applyLMStudioConnectionModeUI() {
+            const mode = getLMStudioConnectionMode(true);
+            const isLan = mode === 'lan';
+            lmStudioSameMachineSetup.classList.toggle('hidden', isLan);
+            lmStudioLanSetup.classList.toggle('hidden', !isLan);
+            lmStudioBaseUrlLabel.textContent = isLan ? 'Windows LM Studio host URL' : 'Local LM Studio URL';
+            lmStudioBaseUrlInput.placeholder = isLan ? LMSTUDIO_LAN_EXAMPLE_URL : LMSTUDIO_DEFAULT_BASE_URL;
+            if (isLan) {
+                lmStudioBaseUrlHelp.innerHTML = 'Enter the Windows host\'s private IPv4 URL, such as <code>http://192.168.1.50:1234</code>. Loopback and <code>0.0.0.0</code> are rejected.';
+                lmStudioStatusDetail.textContent = 'Enter the Windows host private LAN URL, test the connection, detect models, then test one uploaded image.';
+            } else {
+                lmStudioBaseUrlHelp.innerHTML = '<code>localhost</code>, <code>127.0.0.1</code>, and <code>::1</code> are valid when LM Studio runs on this same PC. <code>0.0.0.0</code> is never a destination URL.';
+                lmStudioStatusDetail.textContent = 'Test the local connection, detect models, then test one uploaded image.';
+            }
+            lmStudioConnectionModeSelect.dataset.previousMode = mode;
+        }
+
+        function handleLMStudioConnectionModeChange() {
+            const mode = getLMStudioConnectionMode(true);
+            const currentUrl = lmStudioBaseUrlInput.value.trim();
+            if (mode === 'lan' && (!currentUrl || currentUrl === LMSTUDIO_DEFAULT_BASE_URL)) {
+                lmStudioBaseUrlInput.value = '';
+            } else if (mode === 'same-machine' && !currentUrl) {
+                lmStudioBaseUrlInput.value = LMSTUDIO_DEFAULT_BASE_URL;
+            }
+            lmStudioDetectedCatalog = null;
+            resetLMStudioModelSelector();
+            invalidateLMStudioReadiness();
+            setLMStudioConnectionStatus('not tested', 'idle', mode === 'lan'
+                ? 'LAN mode selected. Enter the Windows host private LAN URL and test the connection.'
+                : 'Same-PC mode selected. Test the local LM Studio connection.');
+            setLMStudioModelStatus('detect models first', 'idle', 'The connection mode changed. Detect models again.');
+            applyLMStudioConnectionModeUI();
+            updateLMStudioMixedContentWarning();
+        }
+
         function loadSettingsValues() {
             tagDefaultModel.value = getSavedTagModel();
             captionDefaultModel.value = getSavedCaptionModel();
             settingMaxTags.value = localStorage.getItem('settingMaxTags') || '30';
-            settingMaxCaptionLen.value = localStorage.getItem('settingMaxCaptionLen') || '50';
+            settingMaxCaptionLen.value = localStorage.getItem('settingMaxCaptionLen') || '70';
             cropAspectRatioSelect.value = getSavedCropAspectRatio();
             cropWidthInput.value = localStorage.getItem('cropWidth') || '1024';
             tagSystemPrompt.value = localStorage.getItem('tagSystemPrompt') || DEFAULT_TAG_PROMPT;
-            captionSystemPrompt.value = localStorage.getItem('captionSystemPrompt') || DEFAULT_CAPTION_PROMPT;
+            const savedCaptionPrompt = localStorage.getItem('captionSystemPrompt');
+            captionSystemPrompt.value = isKnownPreviousDefaultCaptionPrompt(savedCaptionPrompt)
+                ? DEFAULT_CAPTION_PROMPT
+                : savedCaptionPrompt;
             vllmEndpointInput.value = localStorage.getItem('vllmEndpoint') || '';
-            vllmModelTypeInput.value = localStorage.getItem('vllmModelType') || VLLM_DEFAULT_MODEL;
+            vllmModelTypeInput.value = localStorage.getItem('vllmModelType') || '';
             syncVllmModelPreset();
+            const storedLMStudioBaseUrl = localStorage.getItem('lmStudioBaseUrl');
+            const savedMode = localStorage.getItem('lmStudioConnectionMode');
+            const connectionMode = savedMode === 'lan' || savedMode === 'same-machine'
+                ? savedMode
+                : inferLMStudioConnectionMode(storedLMStudioBaseUrl);
+            lmStudioConnectionModeSelect.value = connectionMode;
+            const savedLMStudioBaseUrl = storedLMStudioBaseUrl || (connectionMode === 'same-machine' ? LMSTUDIO_DEFAULT_BASE_URL : '');
+            lmStudioBaseUrlInput.value = savedLMStudioBaseUrl;
+            lmStudioApiTokenInput.value = sessionStorage.getItem('lmStudioApiToken') || '';
+            applyLMStudioConnectionModeUI();
+            let normalizedSavedLMStudioUrl = '';
+            try {
+                normalizedSavedLMStudioUrl = savedLMStudioBaseUrl ? normalizeLMStudioBaseUrl(savedLMStudioBaseUrl, connectionMode) : '';
+            } catch (error) {
+                normalizedSavedLMStudioUrl = '';
+            }
+            if (lmStudioDetectedCatalog?.baseUrl !== normalizedSavedLMStudioUrl
+                || lmStudioDetectedCatalog?.connectionMode !== connectionMode) lmStudioDetectedCatalog = null;
+            if (lmStudioDetectedCatalog) {
+                const models = getSelectableLMStudioModels(lmStudioDetectedCatalog);
+                const savedModelId = localStorage.getItem('lmStudioModelId') || '';
+                const selectedId = models.some(model => model.id === savedModelId)
+                    ? savedModelId
+                    : (lmStudioModelIdInput.value || models[0]?.id || '');
+                resetLMStudioModelSelector(models, selectedId);
+            } else {
+                resetLMStudioModelSelector();
+            }
+            let savedUrlError = null;
+            if (savedLMStudioBaseUrl) {
+                try {
+                    normalizeLMStudioBaseUrl(savedLMStudioBaseUrl, connectionMode);
+                } catch (error) {
+                    savedUrlError = error;
+                }
+            }
+            setLMStudioConnectionStatus(savedUrlError ? 'invalid URL' : 'not tested', savedUrlError ? 'error' : 'idle',
+                savedUrlError?.message || (savedLMStudioBaseUrl
+                    ? `${connectionMode === 'lan' ? 'LAN host' : 'Local server'} URL saved, but this session has not tested it.`
+                    : 'Enter the Windows host private LAN URL, then test the connection.'));
+            if (!lmStudioDetectedCatalog) setLMStudioModelStatus('detect models first', 'idle', 'No server model catalog has been checked.');
+            if (!isLMStudioBatchReady()) setLMStudioReadinessStatus('test one image first', 'idle');
             ddThreshold.value = localStorage.getItem('ddThreshold') || '0.5';
             wdGeneralThresh.value = localStorage.getItem('wdGeneralThresh') || '0.35';
             wdCharThresh.value = localStorage.getItem('wdCharThresh') || '0.85';
@@ -639,12 +1052,12 @@ Expected outcome is a human-readable continuous text consisting of several sente
                 apiKeyInputs[model].value = localStorage.getItem(getProviderKeyStorageName(model)) || '';
             });
             updateSettingsFields();
+            updateLMStudioMixedContentWarning();
+            updateCaptionBatchAvailability();
         }
 
         function applyVllmModelPreset() {
-            if (vllmModelPresetSelect.value) {
-                vllmModelTypeInput.value = vllmModelPresetSelect.value;
-            }
+            if (vllmModelPresetSelect.value) vllmModelTypeInput.value = vllmModelPresetSelect.value;
         }
 
         function syncVllmModelPreset() {
@@ -662,6 +1075,23 @@ Expected outcome is a human-readable continuous text consisting of several sente
         }
 
         function saveSettings() {
+            let lmStudioBaseUrl = '';
+            const lmStudioIsSelected = tagDefaultModel.value === 'lmstudio' || captionDefaultModel.value === 'lmstudio';
+            const lmStudioConnectionMode = getLMStudioConnectionMode(true);
+            if (lmStudioBaseUrlInput.value.trim()) {
+                try {
+                    lmStudioBaseUrl = normalizeLMStudioBaseUrl(lmStudioBaseUrlInput.value, lmStudioConnectionMode);
+                } catch (error) {
+                    showNotification(error.message, 5000);
+                    return;
+                }
+            } else if (lmStudioIsSelected) {
+                setLMStudioConnectionStatus('invalid URL', 'error', lmStudioConnectionMode === 'lan'
+                    ? `Enter the Windows LM Studio host's private LAN URL before using LM Studio.`
+                    : `Enter the local LM Studio URL, usually ${LMSTUDIO_DEFAULT_BASE_URL}.`);
+            }
+            const lmStudioModelId = lmStudioModelIdInput.value.trim();
+
             localStorage.setItem('tagModel', tagDefaultModel.value);
             localStorage.setItem('captionModel', captionDefaultModel.value);
             localStorage.setItem('selectedModel', tagDefaultModel.value);
@@ -675,13 +1105,21 @@ Expected outcome is a human-readable continuous text consisting of several sente
             localStorage.setItem('tagSystemPrompt', tagSystemPrompt.value.trim());
             localStorage.setItem('captionSystemPrompt', captionSystemPrompt.value.trim());
             localStorage.setItem('vllmEndpoint', vllmEndpointInput.value.trim());
-            localStorage.setItem('vllmModelType', vllmModelTypeInput.value.trim() || VLLM_DEFAULT_MODEL);
+            localStorage.setItem('vllmModelType', vllmModelTypeInput.value.trim());
+            localStorage.setItem('lmStudioConnectionMode', lmStudioConnectionMode);
+            localStorage.setItem('lmStudioBaseUrl', lmStudioBaseUrl);
+            if (lmStudioModelId) localStorage.setItem('lmStudioModelId', lmStudioModelId);
+            else localStorage.removeItem('lmStudioModelId');
+            sessionStorage.setItem('lmStudioApiToken', lmStudioApiTokenInput.value.trim());
             localStorage.setItem('ddThreshold', ddThreshold.value);
             localStorage.setItem('wdGeneralThresh', wdGeneralThresh.value);
             localStorage.setItem('wdCharThresh', wdCharThresh.value);
             updateSettingsFields();
+            updateCaptionBatchAvailability();
             closeSettings();
-            showNotification('Settings saved');
+            showNotification(lmStudioIsSelected && (!lmStudioBaseUrl || !lmStudioModelId)
+                ? 'Settings saved — LM Studio still needs connection, model, and image tests'
+                : 'Settings saved', 5000);
         }
 
         function getTagModel() { return isTagModel(tagDefaultModel.value) ? tagDefaultModel.value : getSavedTagModel(); }
@@ -689,19 +1127,436 @@ Expected outcome is a human-readable continuous text consisting of several sente
         function getModel() { return getTagModel(); }
         function getApiKey(model = getModel()) { return localStorage.getItem(getProviderKeyStorageName(model)) || ''; }
         function getWDKey() { return getApiKey('wd14'); }
-        function getVllmModelType() { return localStorage.getItem('vllmModelType') || VLLM_DEFAULT_MODEL; }
+        function getVllmModelType() {
+            const modelType = (localStorage.getItem('vllmModelType') || vllmModelTypeInput.value || '').trim();
+            if (!modelType) throw new Error('vLLM model type required');
+            return modelType;
+        }
 
         function getVllmEndpoint() {
-            const endpoint = (localStorage.getItem('vllmEndpoint') || '').trim();
+            const endpoint = (localStorage.getItem('vllmEndpoint') || vllmEndpointInput.value || '').trim();
             if (!endpoint) throw new Error('vLLM endpoint URL required');
             return normalizeVllmEndpoint(endpoint);
         }
 
         function normalizeVllmEndpoint(endpoint) {
             const trimmed = endpoint.replace(/\/+$/, '');
-            if (/\/v1\/chat\/completions$/.test(trimmed)) return trimmed;
-            if (/\/v1$/.test(trimmed)) return `${trimmed}/chat/completions`;
+            if (/\/v1\/chat\/completions$/i.test(trimmed)) return trimmed;
+            if (/\/v1$/i.test(trimmed)) return `${trimmed}/chat/completions`;
             return `${trimmed}/v1/chat/completions`;
+        }
+        function getLMStudioModelId(useCurrentFields = false) {
+            return (useCurrentFields
+                ? lmStudioModelIdInput.value
+                : (localStorage.getItem('lmStudioModelId') || lmStudioModelIdInput.value || '')).trim();
+        }
+
+        function getLMStudioApiToken() {
+            return (sessionStorage.getItem('lmStudioApiToken') || lmStudioApiTokenInput.value || '').trim();
+        }
+
+        function normalizeLMStudioBaseUrl(value, connectionMode = getLMStudioConnectionMode(true)) {
+            let trimmed = String(value || '').trim().replace(/\/+$/, '');
+            if (!trimmed) {
+                throw createLMStudioError('invalid_url', connectionMode === 'lan'
+                    ? `Enter the Windows LM Studio host's private LAN URL, such as ${LMSTUDIO_LAN_EXAMPLE_URL}.`
+                    : `Enter the local LM Studio URL, usually ${LMSTUDIO_DEFAULT_BASE_URL}.`);
+            }
+            trimmed = trimmed
+                .replace(/\/v1\/chat\/completions$/i, '')
+                .replace(/\/api\/v1\/models$/i, '')
+                .replace(/\/v1\/models$/i, '')
+                .replace(/\/v1$/i, '')
+                .replace(/\/+$/, '');
+            let parsed;
+            try {
+                parsed = new URL(trimmed);
+            } catch (error) {
+                throw createLMStudioError('invalid_url', 'LM Studio server URL is invalid');
+            }
+            if (!['http:', 'https:'].includes(parsed.protocol)) {
+                throw createLMStudioError('invalid_url', 'LM Studio server URL must start with http:// or https://');
+            }
+            const host = normalizeHostname(parsed.hostname);
+            if (isUnspecifiedHostname(host)) {
+                throw createLMStudioError('invalid_url', '0.0.0.0 is a server bind address, not a browser destination URL.');
+            }
+            if (connectionMode === 'lan') {
+                if (isLoopbackHostname(host)) {
+                    throw createLMStudioError('invalid_url', `That address points to the device running TagPilot. Enter the Windows LM Studio host's private LAN address.`);
+                }
+                if (!isPrivateIPv4Hostname(host)) {
+                    throw createLMStudioError('invalid_url', `LAN mode requires a private Windows host IPv4 URL, such as ${LMSTUDIO_LAN_EXAMPLE_URL}.`);
+                }
+            } else if (!isLoopbackHostname(host)) {
+                throw createLMStudioError('invalid_url', `Enter the local LM Studio URL, usually ${LMSTUDIO_DEFAULT_BASE_URL}.`);
+            }
+            return parsed.toString().replace(/\/+$/, '');
+        }
+
+        function getLMStudioBaseUrl(useCurrentFields = false) {
+            const savedValue = localStorage.getItem('lmStudioBaseUrl');
+            const value = useCurrentFields
+                ? lmStudioBaseUrlInput.value
+                : (savedValue !== null ? savedValue : lmStudioBaseUrlInput.value);
+            return normalizeLMStudioBaseUrl(value, getLMStudioConnectionMode(useCurrentFields));
+        }
+
+        function getLMStudioHeaders(useCurrentFields = false, includeContentType = true) {
+            const token = useCurrentFields
+                ? lmStudioApiTokenInput.value.trim()
+                : getLMStudioApiToken();
+            const headers = {};
+            if (includeContentType) headers['Content-Type'] = 'application/json';
+            if (token) headers.Authorization = `Bearer ${token}`;
+            return headers;
+        }
+
+        function isLMStudioMixedContent(baseUrl) {
+            try {
+                return globalThis.location?.protocol === 'https:' && new URL(baseUrl).protocol === 'http:';
+            } catch (error) {
+                return false;
+            }
+        }
+
+        function updateLMStudioMixedContentWarning() {
+            let shouldWarn = false;
+            try {
+                shouldWarn = isLMStudioMixedContent(normalizeLMStudioBaseUrl(lmStudioBaseUrlInput.value));
+            } catch (error) {
+                shouldWarn = false;
+            }
+            lmStudioMixedContentWarning.classList.toggle('hidden', !shouldWarn);
+            return shouldWarn;
+        }
+
+        function getLMStudioConfigurationSignature(useCurrentFields = true) {
+            try {
+                return JSON.stringify({
+                    connectionMode: getLMStudioConnectionMode(useCurrentFields),
+                    baseUrl: getLMStudioBaseUrl(useCurrentFields),
+                    model: getLMStudioModelId(useCurrentFields),
+                    token: useCurrentFields ? lmStudioApiTokenInput.value.trim() : getLMStudioApiToken(),
+                    prompt: getPromptValue(captionSystemPrompt, DEFAULT_CAPTION_PROMPT),
+                    maxWords: getCaptionWordLimit()
+                });
+            } catch (error) {
+                return '';
+            }
+        }
+
+        function isLMStudioBatchReady() {
+            const signature = getLMStudioConfigurationSignature(true);
+            return Boolean(signature && lmStudioReadySignature && signature === lmStudioReadySignature);
+        }
+
+        function updateCaptionBatchAvailability() {
+            const requiresLMStudioTest = getCaptionModel() === 'lmstudio';
+            const ready = !requiresLMStudioTest || isLMStudioBatchReady();
+            captionAllButton.disabled = !ready;
+            startCaptioningBtn.disabled = !ready;
+            [captionAllButton, startCaptioningBtn].forEach(button => {
+                button.classList.toggle('opacity-50', !ready);
+                button.classList.toggle('cursor-not-allowed', !ready);
+            });
+            captionAllButton.title = ready ? '' : 'Test one uploaded image successfully in LM Studio settings before batch captioning.';
+            const canTestImage = dataset.length > 0 && Boolean(lmStudioModelIdInput.value);
+            if (!lmStudioImageTestButton.dataset.busy) lmStudioImageTestButton.disabled = !canTestImage;
+        }
+
+        function invalidateLMStudioReadiness() {
+            lmStudioReadySignature = '';
+            lmStudioLastTestedItemId = null;
+            lmStudioTestResult.classList.add('hidden');
+            setLMStudioReadinessStatus('test one image first', 'idle');
+            updateCaptionBatchAvailability();
+        }
+
+        function handleLMStudioConnectionInput(event) {
+            invalidateLMStudioReadiness();
+            setLMStudioConnectionStatus('not tested', 'idle', 'The connection settings changed. Test the connection again.');
+            if (event.target === lmStudioBaseUrlInput) {
+                lmStudioDetectedCatalog = null;
+                resetLMStudioModelSelector();
+                setLMStudioModelStatus('detect models first', 'idle', 'The server URL changed. Detect models again.');
+            }
+            updateLMStudioMixedContentWarning();
+        }
+
+        async function fetchLMStudio(url, options = {}) {
+            const { useCurrentFields = false, ...fetchOptions } = options;
+            const connectionMode = getLMStudioConnectionMode(useCurrentFields);
+            if (isLMStudioMixedContent(url)) {
+                throw createLMStudioError('browser_request_blocked', 'browser request blocked', 'This HTTPS page cannot call an HTTP LM Studio endpoint. Open TagPilot-LM from http://127.0.0.1:8765/tagpilot.html instead.');
+            }
+            try {
+                return await fetch(url, fetchOptions);
+            } catch (error) {
+                if (error?.name === 'AbortError') throw error;
+                if (connectionMode === 'lan' && globalThis.navigator?.onLine === false) {
+                    throw createLMStudioError('network_unreachable', 'network unreachable', 'This device reports that it is offline. Reconnect to the trusted private network, then try again.');
+                }
+                const detail = connectionMode === 'lan'
+                    ? 'The browser could not complete the LAN request. LM Studio may be offline, the host IPv4 address may be wrong, Windows Firewall may be blocking port 1234, or the server may not have been started with --bind 0.0.0.0 and --cors.'
+                    : `The browser could not complete the local request. LM Studio may be offline, the local URL may be wrong, or the server may not have been started with --cors. The usual URL is ${LMSTUDIO_DEFAULT_BASE_URL}.`;
+                throw createLMStudioError(
+                    'browser_or_network',
+                    'browser request blocked / network unreachable',
+                    detail
+                );
+            }
+        }
+
+        async function readLMStudioJson(response, providerName = 'LM Studio') {
+            if (response.status === 401) {
+                throw createLMStudioError('authentication_required', 'authentication required', 'The LM Studio server requires a token. Enter the optional local server token configured on the server.');
+            }
+            if (response.status === 403) {
+                throw createLMStudioError('forbidden', 'token rejected or forbidden', 'The LM Studio server refused this request. Check the optional local token and server permissions.');
+            }
+            let data;
+            try {
+                data = await response.json();
+            } catch (error) {
+                throw createLMStudioError('unexpected_response', 'unexpected response', `${providerName} returned ${response.status} with no valid JSON response.`);
+            }
+            if (!response.ok) {
+                throw createLMStudioError('unexpected_response', 'unexpected response', `${providerName} returned HTTP ${response.status}: ${extractApiErrorMessage(data)}`);
+            }
+            if (data && Object.prototype.hasOwnProperty.call(data, 'error') && data.error) {
+                throw createLMStudioError('unexpected_response', 'unexpected response', `${providerName} returned an API error: ${extractApiErrorMessage(data)}`);
+            }
+            return data;
+        }
+
+        function normalizeLMStudioCatalog(data, source) {
+            if (source === 'native') {
+                if (!data || !Array.isArray(data.models)) {
+                    throw createLMStudioError('no_model_catalog', 'no model catalog returned', 'The native endpoint did not return a models array.');
+                }
+                const llms = data.models.filter(model => model && model.type === 'llm' && typeof model.key === 'string' && model.key.trim());
+                const models = llms.map(model => ({
+                    id: model.key.trim(),
+                    label: model.display_name || model.key.trim(),
+                    isLoaded: Array.isArray(model.loaded_instances) && model.loaded_instances.length > 0,
+                    isVision: model.capabilities?.vision === true,
+                    visionKnown: typeof model.capabilities?.vision === 'boolean'
+                }));
+                return {
+                    source,
+                    endpoint: '/api/v1/models',
+                    visionMetadataAvailable: models.some(model => model.visionKnown),
+                    models: models.filter((model, index) => models.findIndex(candidate => candidate.id === model.id) === index)
+                };
+            }
+
+            if (!data || !Array.isArray(data.data)) {
+                throw createLMStudioError('no_model_catalog', 'no model catalog returned', 'The OpenAI-compatible endpoint did not return a data array.');
+            }
+            const models = data.data
+                .filter(model => model && typeof model.id === 'string' && model.id.trim())
+                .map(model => ({
+                    id: model.id.trim(),
+                    label: model.id.trim(),
+                    isLoaded: null,
+                    isVision: false,
+                    visionKnown: false
+                }));
+            return {
+                source,
+                endpoint: '/v1/models',
+                visionMetadataAvailable: false,
+                models: models.filter((model, index) => models.findIndex(candidate => candidate.id === model.id) === index)
+            };
+        }
+
+        async function requestLMStudioModelCatalog(useCurrentFields = false) {
+            const baseUrl = getLMStudioBaseUrl(useCurrentFields);
+            const requestOptions = {
+                method: 'GET',
+                headers: getLMStudioHeaders(useCurrentFields, false),
+                useCurrentFields
+            };
+            const endpoints = [
+                { path: '/api/v1/models', source: 'native', name: 'LM Studio native model catalog' },
+                { path: '/v1/models', source: 'openai', name: 'LM Studio OpenAI-compatible model catalog' }
+            ];
+            const failures = [];
+
+            for (const endpoint of endpoints) {
+                const response = await fetchLMStudio(`${baseUrl}${endpoint.path}`, requestOptions);
+                try {
+                    const data = await readLMStudioJson(response, endpoint.name);
+                    const catalog = normalizeLMStudioCatalog(data, endpoint.source);
+                    catalog.baseUrl = baseUrl;
+                    catalog.connectionMode = getLMStudioConnectionMode(useCurrentFields);
+                    return catalog;
+                } catch (error) {
+                    if (error.code === 'authentication_required' || error.code === 'forbidden') throw error;
+                    failures.push(error);
+                }
+            }
+
+            const noCatalog = failures.find(error => error.code === 'no_model_catalog');
+            if (noCatalog) throw noCatalog;
+            throw failures[failures.length - 1] || createLMStudioError('unexpected_response', 'unexpected response', 'Neither model-catalog endpoint returned a usable response.');
+        }
+
+        function isGemma4Model(model) {
+            return /gemma[-_/ .]?4/i.test(`${model.id} ${model.label || ''}`);
+        }
+
+        function getSelectableLMStudioModels(catalog) {
+            const candidates = catalog.visionMetadataAvailable
+                ? catalog.models.filter(model => model.visionKnown && model.isVision)
+                : catalog.models.map(model => ({ ...model, visionKnown: false, isVision: false }));
+            const preferenceGroup = model => {
+                if (!model.visionKnown) return 4;
+                if (model.isLoaded && isGemma4Model(model)) return 0;
+                if (model.isLoaded) return 1;
+                if (isGemma4Model(model)) return 2;
+                return 3;
+            };
+            return [...candidates].sort((a, b) => preferenceGroup(a) - preferenceGroup(b)
+                || a.id.localeCompare(b.id));
+        }
+
+        function applyLMStudioConnectionError(error) {
+            const labels = {
+                invalid_url: 'invalid URL',
+                authentication_required: 'authentication required',
+                forbidden: 'token rejected or forbidden',
+                network_unreachable: 'network unreachable',
+                browser_request_blocked: 'browser request blocked',
+                browser_or_network: 'browser request blocked / network unreachable',
+                no_model_catalog: 'no model catalog returned',
+                unexpected_response: 'unexpected response'
+            };
+            setLMStudioConnectionStatus(labels[error.code] || 'unexpected response', 'error', error.detail || error.message);
+            if (error.code === 'browser_request_blocked') lmStudioMixedContentWarning.classList.remove('hidden');
+        }
+
+        async function testLMStudioConnection() {
+            setLMStudioControlBusy(lmStudioConnectionButton, true, 'Testing…');
+            setLMStudioConnectionStatus('testing…', 'working', 'Trying /api/v1/models, then /v1/models if needed.');
+            try {
+                const catalog = await requestLMStudioModelCatalog(true);
+                if (!catalog.models.length) {
+                    throw createLMStudioError('no_model_catalog', 'no model catalog returned', `${catalog.endpoint} responded, but it returned no model IDs.`);
+                }
+                setLMStudioConnectionStatus('reachable', 'success', `Reached ${catalog.endpoint}; ${catalog.models.length} model ID${catalog.models.length === 1 ? '' : 's'} returned.`);
+                return catalog;
+            } catch (error) {
+                applyLMStudioConnectionError(error);
+                showNotification(`${lmStudioConnectionStatus.textContent}: ${error.detail || error.message}`, 8000);
+                return null;
+            } finally {
+                setLMStudioControlBusy(lmStudioConnectionButton, false, 'Testing…');
+            }
+        }
+
+        async function discoverLMStudioModels() {
+            setLMStudioControlBusy(lmStudioDetectButton, true, 'Detecting…');
+            setLMStudioModelStatus('detecting…', 'working', 'Reading the first valid LM Studio model catalog.');
+            invalidateLMStudioReadiness();
+            try {
+                const catalog = await requestLMStudioModelCatalog(true);
+                if (!catalog.models.length) throw createLMStudioError('no_model_catalog', 'no model catalog returned', `${catalog.endpoint} returned no model IDs.`);
+                const selectableModels = getSelectableLMStudioModels(catalog);
+                if (!selectableModels.length) {
+                    throw createLMStudioError('no_vision_models', 'no vision-capable models returned', 'LM Studio returned capability metadata, but no model has capabilities.vision === true.');
+                }
+                lmStudioDetectedCatalog = catalog;
+                const selected = selectableModels[0];
+                resetLMStudioModelSelector(selectableModels, selected.id);
+                setLMStudioConnectionStatus('reachable', 'success', `Reached ${catalog.endpoint}; the exact returned model IDs are listed below.`);
+                setLMStudioModelStatus(
+                    catalog.visionMetadataAvailable ? 'vision models detected' : 'models detected — vision unverified',
+                    catalog.visionMetadataAvailable ? 'success' : 'review',
+                    `${selectableModels.length} selectable model${selectableModels.length === 1 ? '' : 's'}; preferred ${selected.id}.`
+                );
+                updateCaptionBatchAvailability();
+            } catch (error) {
+                resetLMStudioModelSelector();
+                lmStudioDetectedCatalog = null;
+                if (error.code === 'no_vision_models') {
+                    setLMStudioConnectionStatus('reachable', 'success');
+                    setLMStudioModelStatus('no vision-capable models', 'error', error.detail);
+                } else {
+                    applyLMStudioConnectionError(error);
+                    setLMStudioModelStatus(error.code === 'no_model_catalog' ? 'no model catalog returned' : 'detection failed', 'error', error.detail || error.message);
+                }
+                showNotification(error.detail || error.message, 8000);
+            } finally {
+                setLMStudioControlBusy(lmStudioDetectButton, false, 'Detecting…');
+            }
+        }
+
+        async function preflightLMStudio(useCurrentFields = false) {
+            const catalog = await requestLMStudioModelCatalog(useCurrentFields);
+            const selectedId = getLMStudioModelId(useCurrentFields);
+            if (!selectedId) throw createLMStudioError('no_model_selected', 'Detect models and select an exact model ID first.');
+            const selected = catalog.models.find(model => model.id === selectedId);
+            if (!catalog.models.length) {
+                throw createLMStudioError('no_model_catalog', 'no model catalog returned', 'The server returned no model IDs.');
+            }
+            if (!selected) {
+                throw createLMStudioError('model_not_available', `Model "${selectedId}" is not available. Detect models again and use an exact returned ID.`);
+            }
+            if (selected.visionKnown && !selected.isVision) {
+                throw createLMStudioError('model_not_vision', `Model "${selectedId}" is reported as not vision-capable.`);
+            }
+            return catalog;
+        }
+
+        function getLMStudioTestImageItem() {
+            return findDatasetItemById(currentPreviewItemId)
+                || findDatasetItemById(lastFocusedDatasetItemId)
+                || dataset[0]
+                || null;
+        }
+
+        async function testOneImageWithLMStudio() {
+            const item = getLMStudioTestImageItem();
+            if (!item) {
+                showNotification('Upload at least one image before testing LM Studio.', 5000);
+                return;
+            }
+            if (!lmStudioModelIdInput.value) {
+                showNotification('Detect models and select an exact model ID first.', 5000);
+                return;
+            }
+
+            invalidateLMStudioReadiness();
+            lmStudioImageTestButton.dataset.busy = 'true';
+            setLMStudioControlBusy(lmStudioImageTestButton, true, 'Testing image…');
+            setLMStudioReadinessStatus('testing one image…', 'working', `Sending ${getFileUploadName(item.file)} to the selected LM Studio model.`);
+            try {
+                const result = await generateCaptionResult(item.file, getCaptionWordLimit(), 'lmstudio', { useCurrentFields: true });
+                lmStudioTestCaption.textContent = result.caption;
+                lmStudioTestCaptionMeta.textContent = `${result.wordCount} words${result.needsReview ? ` — review: ${result.warnings.join('; ')}` : ' — output passed validation'}`;
+                lmStudioTestResult.classList.remove('hidden');
+                lmStudioReadySignature = getLMStudioConfigurationSignature(true);
+                lmStudioLastTestedItemId = item.id;
+                setLMStudioConnectionStatus('reachable', 'success');
+                setLMStudioReadinessStatus('Ready for batch captioning', result.needsReview ? 'review' : 'success',
+                    result.needsReview ? 'The image request succeeded; inspect the flagged caption before running a batch.' : 'The image request returned a usable caption.');
+                updateCaptionBatchAvailability();
+            } catch (error) {
+                const connectionErrorCodes = new Set([
+                    'invalid_url', 'authentication_required', 'forbidden', 'network_unreachable',
+                    'browser_request_blocked', 'browser_or_network', 'no_model_catalog', 'unexpected_response'
+                ]);
+                if (connectionErrorCodes.has(error.code)) applyLMStudioConnectionError(error);
+                else setLMStudioConnectionStatus('reachable', 'success', 'The server answered, but the returned caption did not pass validation.');
+                setLMStudioReadinessStatus('image test failed', 'error', error.detail || error.message);
+                showNotification(`Image test failed: ${error.detail || error.message}`, 8000);
+            } finally {
+                delete lmStudioImageTestButton.dataset.busy;
+                setLMStudioControlBusy(lmStudioImageTestButton, false, 'Testing image…');
+                updateCaptionBatchAvailability();
+            }
         }
 
         function getIntegerSetting(input, fallback, min, max) {
@@ -715,7 +1570,7 @@ Expected outcome is a human-readable continuous text consisting of several sente
         }
 
         function getCaptionWordLimit() {
-            return getIntegerSetting(settingMaxCaptionLen, 50, 5, 200);
+            return getIntegerSetting(settingMaxCaptionLen, 70, 5, 200);
         }
 
         function getCropWidth() {
@@ -751,16 +1606,8 @@ Expected outcome is a human-readable continuous text consisting of several sente
 Limit the output to ${maxTags} comma-separated tags or fewer.`;
         }
 
-        function buildCaptionPrompt(maxWords) {
-            return `${getPromptValue(captionSystemPrompt, DEFAULT_CAPTION_PROMPT)}
-
-Limit the caption to ${maxWords} words or fewer.`;
-        }
-
-        function trimCaptionToWordLimit(text, maxWords) {
-            const words = text.trim().split(/\s+/).filter(Boolean);
-            if (words.length <= maxWords) return text.trim();
-            return words.slice(0, maxWords).join(' ');
+        function buildCaptionPrompt() {
+            return getPromptValue(captionSystemPrompt, DEFAULT_CAPTION_PROMPT);
         }
 
         function buildResponsesVisionInput(promptText, imageUrl) {
@@ -784,24 +1631,134 @@ Limit the caption to ${maxWords} words or fewer.`;
             return parts.join('\n').trim();
         }
 
+        function extractChatCompletionText(data) {
+            const content = data?.choices?.[0]?.message?.content;
+            if (typeof content === 'string') return content.trim();
+            if (Array.isArray(content)) {
+                return content
+                    .map(part => typeof part === 'string' ? part : (part?.text || ''))
+                    .filter(Boolean)
+                    .join('\n')
+                    .trim();
+            }
+            return '';
+        }
+
+        function stripModelControlText(text) {
+            return String(text || '')
+                .replace(/^\s*<\|channel\|?>thought[\s\S]*?<\|?channel\|?>\s*/i, '')
+                .replace(/^\s*(?:caption|answer)\s*:\s*/i, '')
+                .trim();
+        }
+
+        function countCaptionWords(text) {
+            return (String(text || '').match(/[\p{L}\p{N}]+(?:['’\-][\p{L}\p{N}]+)*/gu) || []).length;
+        }
+
+        function isObviousTagList(text) {
+            const parts = text.split(',').map(part => part.trim()).filter(Boolean);
+            if (parts.length < 5 || /[.!?]/.test(text)) return false;
+            const shortParts = parts.filter(part => countCaptionWords(part) <= 3).length;
+            const proseCue = /\b(?:is|are|wearing|standing|walking|sitting|holding|looking|leaning|lying|with|while|against|beside|behind|under|through)\b/i.test(text);
+            return shortParts / parts.length >= 0.8 && !proseCue;
+        }
+
+        function validateCaptionOutput(rawText, { filename = '', maxWords = 70 } = {}) {
+            if (typeof rawText !== 'string' || !rawText.trim()) {
+                throw createLMStudioError('invalid_caption', 'empty content', 'The model returned no usable caption text.');
+            }
+
+            let text = rawText.trim();
+            const warnings = [];
+            const withoutControlText = stripModelControlText(text);
+            if (withoutControlText !== text) {
+                text = withoutControlText;
+                warnings.push('model control text removed');
+            }
+
+            const fenced = text.match(/^```(?:[a-z0-9_-]+)?\s*\n?([\s\S]*?)\n?```$/i);
+            if (fenced) {
+                text = fenced[1].trim();
+                warnings.push('Markdown fence removed');
+            } else if (/^```|```$/.test(text)) {
+                text = text.replace(/^```(?:[a-z0-9_-]+)?\s*/i, '').replace(/\s*```$/, '').trim();
+                warnings.push('incomplete Markdown fence removed');
+            }
+
+            const removeSurroundingQuotes = value => {
+                const pairs = [['"', '"'], ["'", "'"], ['“', '”'], ['‘', '’']];
+                const pair = pairs.find(([open, close]) => value.startsWith(open) && value.endsWith(close) && value.length > open.length + close.length);
+                return pair ? value.slice(pair[0].length, -pair[1].length).trim() : value;
+            };
+            let unquoted = removeSurroundingQuotes(text);
+            if (unquoted !== text) {
+                text = unquoted;
+                warnings.push('surrounding quotation marks removed');
+            }
+
+            const prefixPattern = /^\s*(?:caption|here is (?:the )?caption|output)\s*(?::|\.)\s*/i;
+            const withoutPrefix = text.replace(prefixPattern, '');
+            if (withoutPrefix !== text) {
+                text = withoutPrefix.trim();
+                warnings.push('caption prefix removed');
+            }
+            unquoted = removeSurroundingQuotes(text);
+            if (unquoted !== text) {
+                text = unquoted;
+                if (!warnings.includes('surrounding quotation marks removed')) warnings.push('surrounding quotation marks removed');
+            }
+
+            if (/^\s*\{[\s\S]*\}\s*$/.test(text)) {
+                throw createLMStudioError('invalid_caption', 'JSON object rejected', 'The model returned a JSON object instead of a plain caption.');
+            }
+
+            const lines = text.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+            if (lines.length > 1) {
+                const structured = lines.some(line => /^(?:[-*#>]|\d+[.)]\s|[{}\[\]])/.test(line));
+                if (structured) {
+                    throw createLMStudioError('invalid_caption', 'structured multiline output rejected', 'The model returned a list or structured block instead of one plain caption.');
+                }
+                text = lines.join(' ');
+                warnings.push('safe line breaks collapsed');
+            }
+            text = text.replace(/[ \t]+/g, ' ').trim();
+
+            if (!text) throw createLMStudioError('invalid_caption', 'empty content', 'Caption cleanup left no usable text.');
+            if (/\[trigger\]/i.test(text)) {
+                throw createLMStudioError('invalid_caption', '[TRIGGER] rejected', 'The model returned the reserved [TRIGGER] placeholder.');
+            }
+            const normalizedFilename = String(filename || '').split(/[\\/]/).pop().trim().toLowerCase();
+            if (/\bfilename\s*:/i.test(text) || (normalizedFilename && text.toLowerCase().includes(normalizedFilename))) {
+                throw createLMStudioError('invalid_caption', 'filename echo rejected', `The model echoed the filename ${filename} instead of returning only the caption.`);
+            }
+            if (/\b(?:i\s+(?:cannot|can't|won't)|i\s+am\s+unable|unable\s+to\s+(?:comply|provide|caption)|as\s+an\s+ai|sorry[,\s])/i.test(text)) {
+                throw createLMStudioError('invalid_caption', 'refusal text rejected', 'The model returned refusal or assistant-style text instead of a caption.');
+            }
+            if (isObviousTagList(text)) {
+                throw createLMStudioError('invalid_caption', 'tag list rejected', 'The model returned an obvious comma-separated tag list instead of natural-language caption prose.');
+            }
+
+            const wordCount = countCaptionWords(text);
+            if (!wordCount) throw createLMStudioError('invalid_caption', 'empty content', 'The model returned no countable caption words.');
+            if (wordCount > maxWords) warnings.push(`${wordCount} words exceeds the configured maximum of ${maxWords}`);
+            const targetMinimum = Math.min(maxWords, /facecrop/i.test(filename) ? 12 : 30);
+            if (wordCount < targetMinimum) warnings.push(`${wordCount} words is below the ${targetMinimum}-word target`);
+
+            return {
+                caption: text,
+                wordCount,
+                maxWords,
+                warnings,
+                needsReview: warnings.length > 0
+            };
+        }
+
         function extractClaudeText(data) {
             return (data.content || [])
                 .filter(part => part.type === 'text' && typeof part.text === 'string')
                 .map(part => part.text)
                 .join('\n')
                 .trim();
-        }
-
-        function extractChatCompletionText(data) {
-            const content = data?.choices?.[0]?.message?.content;
-            if (typeof content === 'string') return content.trim();
-            if (Array.isArray(content)) {
-                return content
-                    .map(part => typeof part.text === 'string' ? part.text : '')
-                    .join('\n')
-                    .trim();
-            }
-            return '';
         }
 
         function getImageMimeType(file) {
@@ -837,7 +1794,53 @@ Limit the caption to ${maxWords} words or fewer.`;
             };
         }
 
+        function buildLMStudioChatPayload({ model, systemPrompt, dataUrl, filename, maxWords, taskType = 'caption' }) {
+            const metadataText = taskType === 'caption'
+                ? `Filename: ${filename}\nMaximum caption length: ${maxWords} words.`
+                : `Filename: ${filename}\nFollow the system instructions and return only the requested tags.`;
+            return {
+                model,
+                messages: [
+                    { role: 'system', content: systemPrompt },
+                    {
+                        role: 'user',
+                        content: [
+                            { type: 'image_url', image_url: { url: dataUrl } },
+                            { type: 'text', text: metadataText }
+                        ]
+                    }
+                ],
+                temperature: 0.2,
+                stream: false
+            };
+        }
+
         const TEXT_PROVIDERS = {
+            lmstudio: {
+                name: 'LM Studio',
+                requiresApiKey: false,
+                async request({ promptText, imageData, imageMimeType, imageFile, signal, taskType, maxWords, useCurrentFields = false }) {
+                    const model = getLMStudioModelId(useCurrentFields);
+                    if (!model) throw createLMStudioError('no_model_selected', 'Detect models and select an exact LM Studio model ID first.');
+                    const dataUrl = `data:${imageMimeType};base64,${imageData}`;
+                    const resp = await fetchLMStudio(`${getLMStudioBaseUrl(useCurrentFields)}/v1/chat/completions`, {
+                        method: 'POST',
+                        headers: getLMStudioHeaders(useCurrentFields, true),
+                        useCurrentFields,
+                        signal,
+                        body: JSON.stringify(buildLMStudioChatPayload({
+                            model,
+                            systemPrompt: promptText,
+                            dataUrl,
+                            filename: getFileUploadName(imageFile),
+                            maxWords,
+                            taskType
+                        }))
+                    });
+                    const data = await readLMStudioJson(resp, 'LM Studio');
+                    return extractChatCompletionText(data);
+                }
+            },
             gemini: {
                 name: 'Gemini',
                 async request({ apiKey, promptText, imageData, imageMimeType }) {
@@ -1001,10 +2004,7 @@ Limit the caption to ${maxWords} words or fewer.`;
                     .map(([tag]) => tag));
             }
 
-            if (typeof output?.[2] === 'string') {
-                return formatTags(output[2].split(','));
-            }
-
+            if (typeof output?.[2] === 'string') return formatTags(output[2].split(','));
             return '';
         }
 
@@ -1040,27 +2040,27 @@ Limit the caption to ${maxWords} words or fewer.`;
             if (!resultResp.ok) {
                 throw new Error(`DeepDanbooru API error ${resultResp.status}: ${resultText || 'Request failed'}`);
             }
-
             return extractDeepDanbooruTags(parseDeepDanbooruSse(resultText), threshold);
         }
 
         async function fileToBase64(file) {
-            return new Promise((resolve) => {
+            return new Promise((resolve, reject) => {
                 const reader = new FileReader();
                 reader.onload = () => resolve(reader.result);
+                reader.onerror = () => reject(new Error(`Could not read ${getFileUploadName(file)}`));
+                reader.onabort = () => reject(new DOMException('Image read stopped', 'AbortError'));
                 reader.readAsDataURL(file);
             });
         }
 
-        async function generateImageText(imageFile, promptText, model = getModel()) {
+        async function generateImageText(imageFile, promptText, model = getModel(), requestContext = {}) {
+            const base64 = await fileToBase64(imageFile);
+            const imageData = base64.split(',')[1];
             const imageMimeType = getImageMimeType(imageFile);
 
             if (model === 'deepdanbooru') {
                 return requestDeepDanbooru(imageFile, imageMimeType);
             }
-
-            const base64 = await fileToBase64(imageFile);
-            const imageData = base64.split(',')[1];
 
             if (model === 'wd14') {
                 const apiKey = getWDKey();
@@ -1089,21 +2089,53 @@ Limit the caption to ${maxWords} words or fewer.`;
 
             const provider = getTextProvider(model);
             const providerName = provider.name;
-            const apiKey = getApiKey(model);
-            if (!apiKey) throw new Error('API key missing');
+            const apiKey = provider.requiresApiKey === false ? '' : getApiKey(model);
+            if (provider.requiresApiKey !== false && !apiKey) throw new Error(`${providerName} API key missing`);
 
-            const responseText = await provider.request({ apiKey, promptText, base64, imageData, imageMimeType });
-            if (!responseText) throw new Error(`${providerName} returned no text`);
-            return responseText.trim();
+            const controller = model === 'lmstudio' ? new AbortController() : null;
+            if (controller) activeLocalRequestController = controller;
+            let responseText;
+            try {
+                responseText = await provider.request({
+                    apiKey,
+                    promptText,
+                    base64,
+                    imageData,
+                    imageMimeType,
+                    imageFile,
+                    signal: controller?.signal,
+                    ...requestContext
+                });
+            } finally {
+                if (activeLocalRequestController === controller) activeLocalRequestController = null;
+            }
+            if (!responseText && requestContext.taskType !== 'caption') throw new Error(`${providerName} returned no text`);
+            return String(responseText || '').trim();
         }
 
         async function generateTags(imageFile, maxTags = getTagLimit(), model = getTagModel()) {
-            return generateImageText(imageFile, buildTagPrompt(maxTags), model);
+            return generateImageText(imageFile, buildTagPrompt(maxTags), model, { taskType: 'tags' });
         }
 
-        async function generateCaption(imageFile, maxWords = getCaptionWordLimit(), model = getCaptionModel()) {
-            const caption = await generateImageText(imageFile, buildCaptionPrompt(maxWords), model);
-            return trimCaptionToWordLimit(caption, maxWords);
+        async function generateCaptionResult(imageFile, maxWords = getCaptionWordLimit(), model = getCaptionModel(), options = {}) {
+            const systemPrompt = buildCaptionPrompt();
+            const providerPrompt = model === 'lmstudio'
+                ? systemPrompt
+                : `${systemPrompt}\n\nMaximum caption length: ${maxWords} words.`;
+            const rawCaption = await generateImageText(imageFile, providerPrompt, model, {
+                taskType: 'caption',
+                maxWords,
+                ...options
+            });
+            return validateCaptionOutput(rawCaption, {
+                filename: getFileUploadName(imageFile),
+                maxWords
+            });
+        }
+
+        async function generateCaption(imageFile, maxWords = getCaptionWordLimit(), model = getCaptionModel(), options = {}) {
+            const result = await generateCaptionResult(imageFile, maxWords, model, options);
+            return result.caption;
         }
 
         function showNotification(text, duration = 3000) {
@@ -1179,6 +2211,22 @@ Limit the caption to ${maxWords} words or fewer.`;
             return formatTags(removeTriggerTag(parseTags(text), triggerWord));
         }
 
+        function withoutCaptionTriggerPrefix(text, triggerWord) {
+            let value = String(text || '').trim();
+            const token = String(triggerWord || '').trim();
+            if (!token) return value;
+            while (value === token || value.startsWith(`${token},`)) {
+                if (value === token) return '';
+                value = value.slice(token.length + 1).trim();
+            }
+            return value;
+        }
+
+        function withCaptionTriggerForExport(text, triggerWord) {
+            const caption = withoutCaptionTriggerPrefix(text, triggerWord);
+            return triggerWord ? `${triggerWord}, ${caption}`.replace(/,\s*$/, '') : caption;
+        }
+
         function isBlankOrTriggerOnly(text, triggerWord) {
             const tags = parseTags(text);
             return tags.length === 0 || (Boolean(triggerWord) && tags.length === 1 && tags[0] === triggerWord);
@@ -1248,8 +2296,7 @@ Limit the caption to ${maxWords} words or fewer.`;
                     finalFile = new File([file], newName, { type: 'image/jpeg' });
                 }
                 
-                let initialTags = currentTriggerWord ? currentTriggerWord : "";
-                newDatasetItems.push(createDatasetItem(finalFile, initialTags, 'tags'));
+                newDatasetItems.push(createDatasetItem(finalFile, '', 'tags'));
                 existingHashes.add(hash); 
             }
             
@@ -1314,8 +2361,6 @@ Limit the caption to ${maxWords} words or fewer.`;
                         tags = tags.trim();
                     }
 
-                    if (currentTriggerWord) tags = withTriggerWord(tags, currentTriggerWord);
-
                     newDatasetItems.push(createDatasetItem(imageFile, tags, 'tags'));
                     existingHashes.add(hash);
                 }
@@ -1344,6 +2389,8 @@ Limit the caption to ${maxWords} words or fewer.`;
             datasetNameInput.value = '';
             triggerWordInput.value = '';
             currentTriggerWord = '';
+            lastFocusedDatasetItemId = null;
+            invalidateLMStudioReadiness();
             updateInputPrefixLabels();
             render();
         }
@@ -1351,7 +2398,7 @@ Limit the caption to ${maxWords} words or fewer.`;
         function handleClearTags() {
             if (!confirm("Clear all tags/captions?")) return;
             dataset.forEach(item => {
-                item.tags = currentTriggerWord || "";
+                item.tags = '';
                 item.type = 'tags';
             });
             renderTagUpdates();
@@ -1365,7 +2412,10 @@ Limit the caption to ${maxWords} words or fewer.`;
             dataset.forEach(item => {
                 zip.file(item.file.name, item.file);
                 const txtName = item.file.name.replace(/\.[^/.]+$/, ".txt");
-                zip.file(txtName, item.tags);
+                const exportedText = item.type === 'caption'
+                    ? withCaptionTriggerForExport(item.tags, currentTriggerWord)
+                    : (currentTriggerWord ? withTriggerWord(item.tags, currentTriggerWord) : item.tags);
+                zip.file(txtName, exportedText);
             });
             const blob = await zip.generateAsync({type:"blob"});
             const url = createTransientObjectUrl(blob);
@@ -1395,13 +2445,7 @@ Limit the caption to ${maxWords} words or fewer.`;
         }
 
         function handleTriggerWordChange(e) {
-            const newTrigger = e.target.value.trim();
-            dataset.forEach(item => {
-                const text = withoutTriggerWord(item.tags, currentTriggerWord);
-                item.tags = newTrigger ? withTriggerWord(text, newTrigger) : text;
-            });
-            currentTriggerWord = newTrigger;
-            renderTagUpdates();
+            currentTriggerWord = e.target.value.trim();
         }
 
         function renderTagUpdates() {
@@ -1437,6 +2481,28 @@ Limit the caption to ${maxWords} words or fewer.`;
             });
         }
 
+        function renderItemResultStatus(itemId) {
+            const item = findDatasetItemById(itemId);
+            const status = document.querySelector(`.item-result-status[data-id='${itemId}']`);
+            if (!item || !status) return;
+            const message = item.resultMessage || '';
+            status.textContent = message;
+            status.title = message;
+            status.classList.toggle('hidden', !message);
+            status.classList.toggle('text-red-300', item.resultState === 'error');
+            status.classList.toggle('text-purple-300', item.resultState === 'review');
+            status.classList.toggle('text-emerald-300', item.resultState === 'success');
+            status.classList.toggle('text-gray-400', item.resultState === 'skipped');
+        }
+
+        function setItemResultStatus(itemId, message = '', state = 'success') {
+            const item = findDatasetItemById(itemId);
+            if (!item) return;
+            item.resultMessage = message;
+            item.resultState = message ? state : '';
+            renderItemResultStatus(itemId);
+        }
+
         function openTagSettings() {
             if (dataset.length === 0) return showNotification("No images");
             tagSettingsConfig.classList.remove('hidden');
@@ -1450,6 +2516,9 @@ Limit the caption to ${maxWords} words or fewer.`;
 
         function openCaptionSettings() {
             if (dataset.length === 0) return showNotification("No images");
+            if (getCaptionModel() === 'lmstudio' && !isLMStudioBatchReady()) {
+                return showNotification('Open Settings and complete Test One Image before Caption All.', 6000);
+            }
             captionSettingsConfig.classList.remove('hidden');
             captionSettingsProgress.classList.add('hidden');
             captionSettingsModal.style.display = 'flex';
@@ -1461,46 +2530,65 @@ Limit the caption to ${maxWords} words or fewer.`;
 
         function stopBatchProcessing() {
             isBatchProcessing = false;
+            activeLocalRequestController?.abort();
         }
 
         function shouldProcessBatchItem(item, mode) {
             return mode === 'overwrite' || mode === 'append' || (mode === 'ignore' && isBlankOrTriggerOnly(item.tags, currentTriggerWord));
         }
 
-        function updateBatchProgress(progressBar, progressText, processed, total) {
-            progressBar.style.width = `${(processed / total) * 100}%`;
-            progressText.textContent = `${processed} / ${total}`;
+        function updateBatchProgress(progressBar, progressText, counts, total) {
+            const processed = counts.completed + counts.failed + counts.skipped;
+            progressBar.style.width = `${total ? (processed / total) * 100 : 0}%`;
+            progressText.textContent = `${processed} / ${total} — completed ${counts.completed} · failed ${counts.failed} · skipped ${counts.skipped}`;
         }
 
-        async function runBatchProcessing({ configPanel, progressPanel, progressBar, progressText, closeModal, completeMessage, processItem }) {
+        async function runBatchProcessing({ configPanel, progressPanel, progressBar, progressText, closeModal, operationName, processItem }) {
             configPanel.classList.add('hidden');
             progressPanel.classList.remove('hidden');
             isBatchProcessing = true;
 
-            let processed = 0;
+            const counts = { completed: 0, failed: 0, skipped: 0, stopped: 0 };
             const total = dataset.length;
-            progressText.textContent = `0 / ${total}`;
+            progressText.textContent = `0 / ${total} — completed 0 · failed 0 · skipped 0`;
             progressBar.style.width = '0%';
 
             for (let i = 0; i < total && isBatchProcessing; i++) {
+                const item = dataset[i];
                 try {
-                    await processItem(dataset[i], i);
+                    const outcome = await processItem(item, i);
+                    if (outcome === 'skipped') counts.skipped++;
+                    else counts.completed++;
                 } catch (e) {
+                    if (e?.name === 'AbortError' && !isBatchProcessing) break;
                     console.error(e);
+                    counts.failed++;
+                    setItemResultStatus(item.id, `Error: ${e.detail || e.message || String(e)}`, 'error');
                 }
-                processed++;
-                updateBatchProgress(progressBar, progressText, processed, total);
+                updateBatchProgress(progressBar, progressText, counts, total);
             }
 
+            counts.stopped = Math.max(0, total - counts.completed - counts.failed - counts.skipped);
             renderTagViewer();
             isBatchProcessing = false;
             closeModal();
-            showNotification(completeMessage);
+            const summary = `${operationName}: completed ${counts.completed}, failed ${counts.failed}, skipped ${counts.skipped}, stopped ${counts.stopped}`;
+            showNotification(summary, counts.failed || counts.stopped ? 8000 : 5000);
+            return counts;
         }
 
         async function startBatchTagging() {
             const maxTags = getTagLimit();
             const mode = document.querySelector('input[name="tag-mode"]:checked').value;
+
+            if (getTagModel() === 'lmstudio') {
+                try {
+                    await preflightLMStudio();
+                } catch (error) {
+                    showNotification(error.message, 8000);
+                    return;
+                }
+            }
 
             await runBatchProcessing({
                 configPanel: tagSettingsConfig,
@@ -1508,24 +2596,25 @@ Limit the caption to ${maxWords} words or fewer.`;
                 progressBar: tagProgressBar,
                 progressText: tagProgressText,
                 closeModal: closeTagSettings,
-                completeMessage: "Tagging complete",
+                operationName: 'Tagging',
                 async processItem(item, index) {
-                    if (!shouldProcessBatchItem(item, mode)) return;
+                    if (!shouldProcessBatchItem(item, mode)) {
+                        setItemResultStatus(item.id, 'Skipped: existing text', 'skipped');
+                        return 'skipped';
+                    }
 
                     const newTags = await generateTags(item.file, maxTags);
                     let tags = parseTags(newTags);
                     if (mode === 'append') {
                         tags = mergeTags(item.tags, tags);
                     }
-                    if (currentTriggerWord) {
-                        tags = removeTriggerTag(tags, currentTriggerWord);
-                        tags.unshift(currentTriggerWord);
-                    }
                     if (tags.length > maxTags) tags = tags.slice(0, maxTags);
                     item.tags = formatTags(tags);
                     item.type = 'tags';
                     const wrapper = document.querySelector(`.tag-area-wrapper[data-id='${item.id}']`);
                     if (wrapper) renderTagsInCard(wrapper, item.id);
+                    setItemResultStatus(item.id, 'Tags ready', 'success');
+                    return 'completed';
                 }
             });
         }
@@ -1534,23 +2623,39 @@ Limit the caption to ${maxWords} words or fewer.`;
             const maxWords = getCaptionWordLimit();
             const mode = document.querySelector('input[name="caption-mode"]:checked').value;
 
+            const captionModel = getCaptionModel();
+            if (captionModel === 'lmstudio' && !isLMStudioBatchReady()) {
+                showNotification('Test one uploaded image successfully in LM Studio settings before batch captioning.', 8000);
+                updateCaptionBatchAvailability();
+                return;
+            }
+
             await runBatchProcessing({
                 configPanel: captionSettingsConfig,
                 progressPanel: captionSettingsProgress,
                 progressBar: captionProgressBar,
                 progressText: captionProgressText,
                 closeModal: closeCaptionSettings,
-                completeMessage: "Captioning complete",
+                operationName: 'Captioning',
                 async processItem(item, index) {
-                    if (!shouldProcessBatchItem(item, mode)) return;
+                    if (!shouldProcessBatchItem(item, mode)) {
+                        setItemResultStatus(item.id, 'Skipped: existing text', 'skipped');
+                        return 'skipped';
+                    }
 
-                    const caption = await generateCaption(item.file, maxWords);
-                    let final = mode === 'overwrite' ? caption : (item.tags ? item.tags + " " + caption : caption);
-                    if (currentTriggerWord && !final.startsWith(currentTriggerWord)) final = currentTriggerWord + ", " + final;
+                    const result = await generateCaptionResult(item.file, maxWords, captionModel, {
+                        useCurrentFields: captionModel === 'lmstudio'
+                    });
+                    const final = mode === 'overwrite' ? result.caption : (item.tags ? item.tags + " " + result.caption : result.caption);
                     item.tags = final;
                     item.type = 'caption';
+                    item.captionValidation = result;
                     const wrapper = document.querySelector(`.tag-area-wrapper[data-id='${item.id}']`);
                     if (wrapper) renderTagsInCard(wrapper, item.id);
+                    setItemResultStatus(item.id,
+                        result.needsReview ? `Review: ${result.warnings.join('; ')}` : `Caption ready (${result.wordCount} words)`,
+                        result.needsReview ? 'review' : 'success');
+                    return 'completed';
                 }
             });
         }
@@ -1558,6 +2663,7 @@ Limit the caption to ${maxWords} words or fewer.`;
         function render() {
             ensureDatasetItemIds();
             imageGrid.innerHTML = '';
+            updateCaptionBatchAvailability();
 
             if (dataset.length === 0) {
                 taggerSection.classList.add('hidden');
@@ -1584,8 +2690,11 @@ Limit the caption to ${maxWords} words or fewer.`;
                         <img src="${imageUrl}" class="w-full h-full object-cover">
                     </div>
                     <div class="p-4 flex flex-col flex-grow min-w-0 h-full">
-                        <div class="flex justify-between items-center mb-2">
-                            <p class="text-xs text-gray-400" id="resolution-${itemId}">loading...</p>
+                        <div class="flex justify-between items-start gap-3 mb-2">
+                            <div class="min-w-0">
+                                <p class="text-xs text-gray-400" id="resolution-${itemId}">loading...</p>
+                                <p class="item-result-status text-[11px] truncate hidden" data-id="${item.id}"></p>
+                            </div>
                             <button class="toggle-type-button" data-id="${item.id}" title="Toggle Tags/Caption">
                                 <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
                             </button>
@@ -1615,6 +2724,7 @@ Limit the caption to ${maxWords} words or fewer.`;
                 img.onload = () => document.getElementById(`resolution-${itemId}`).textContent = `${img.naturalWidth}x${img.naturalHeight}`;
 
                 renderTagsInCard(card.querySelector('.tag-area-wrapper'), itemId);
+                renderItemResultStatus(itemId);
 
                 card.querySelector('.thumbnail-container').addEventListener('click', () => showPreview(imageUrl, itemId));
                 card.querySelector('.toggle-type-button').addEventListener('click', () => toggleCardType(itemId));
@@ -1746,12 +2856,14 @@ Limit the caption to ${maxWords} words or fewer.`;
             setSingleProcessing(itemId, 'Tagging');
             try {
                 const tags = await generateTags(item.file);
-                item.tags = currentTriggerWord ? withTriggerWord(tags, currentTriggerWord) : formatTags(parseTags(tags));
+                item.tags = formatTags(parseTags(tags));
                 item.type = 'tags';
                 renderTagsInCard(document.querySelector(`.tag-area-wrapper[data-id='${itemId}']`), itemId);
                 renderTagViewer();
+                setItemResultStatus(itemId, 'Tags ready', 'success');
                 showNotification("Tagged");
             } catch (e) {
+                setItemResultStatus(itemId, `Error: ${e.detail || e.message}`, 'error');
                 showNotification("Error: " + e.message);
             } finally {
                 setSingleProcessing(itemId, null);
@@ -1761,16 +2873,28 @@ Limit the caption to ${maxWords} words or fewer.`;
         async function captionSingle(itemId) {
             const item = findDatasetItemById(itemId);
             if (!item) return;
+            const captionModel = getCaptionModel();
+            if (captionModel === 'lmstudio' && !isLMStudioBatchReady()) {
+                showNotification('Open Settings and complete Test One Image before using LM Studio captions.', 6000);
+                return;
+            }
             setSingleProcessing(itemId, 'Captioning');
             try {
-                const caption = await generateCaption(item.file);
-                item.tags = caption;
+                const result = await generateCaptionResult(item.file, getCaptionWordLimit(), captionModel, {
+                    useCurrentFields: captionModel === 'lmstudio'
+                });
+                item.tags = result.caption;
                 item.type = 'caption';
+                item.captionValidation = result;
                 renderTagsInCard(document.querySelector(`.tag-area-wrapper[data-id='${itemId}']`), itemId);
                 renderTagViewer();
-                showNotification("Captioned");
+                setItemResultStatus(itemId,
+                    result.needsReview ? `Review: ${result.warnings.join('; ')}` : `Caption ready (${result.wordCount} words)`,
+                    result.needsReview ? 'review' : 'success');
+                showNotification(result.needsReview ? 'Captioned — review flagged output' : 'Captioned');
             } catch (e) {
-                showNotification("Error: " + e.message);
+                setItemResultStatus(itemId, `Error: ${e.detail || e.message}`, 'error');
+                showNotification("Error: " + (e.detail || e.message));
             } finally {
                 setSingleProcessing(itemId, null);
             }
@@ -1779,6 +2903,8 @@ Limit the caption to ${maxWords} words or fewer.`;
         function removeImage(itemId) {
             const index = findDatasetItemIndexById(itemId);
             if (index < 0) return;
+            if (itemId === lmStudioLastTestedItemId) invalidateLMStudioReadiness();
+            if (itemId === lastFocusedDatasetItemId) lastFocusedDatasetItemId = null;
             revokeFileObjectUrl(dataset[index].file);
             dataset.splice(index, 1);
             render();
@@ -1796,15 +2922,20 @@ Limit the caption to ${maxWords} words or fewer.`;
         async function saveCrop() {
             if (!cropper) return;
             const canvas = cropper.getCroppedCanvas(getCropCanvasOptions());
-            const blob = await new Promise(r => canvas.toBlob(r));
             const item = findDatasetItemById(currentCropItemId);
             if (!item) {
                 cancelCrop();
                 return;
             }
             const oldFile = item.file;
-            item.file = new File([blob], oldFile.name, { type: oldFile.type });
+            const originalType = getImageMimeType(oldFile);
+            const outputType = ['image/jpeg', 'image/png', 'image/webp'].includes(originalType) ? originalType : 'image/png';
+            const blob = await new Promise((resolve, reject) => {
+                canvas.toBlob(result => result ? resolve(result) : reject(new Error('The browser could not create the cropped image.')), outputType, 0.95);
+            });
+            item.file = new File([blob], oldFile.name, { type: blob.type || outputType });
             revokeFileObjectUrl(oldFile);
+            if (item.id === lmStudioLastTestedItemId) invalidateLMStudioReadiness();
             cropper.destroy();
             cropper = null;
             currentCropItemId = null;
@@ -1822,6 +2953,7 @@ Limit the caption to ${maxWords} words or fewer.`;
 
         function showPreview(url, itemId = null) {
             currentPreviewItemId = itemId;
+            if (itemId) lastFocusedDatasetItemId = itemId;
             previewImage.src = url;
             previewModal.style.display = 'flex';
         }

@@ -1,5 +1,7 @@
 # TagPilot vLLM Multimodal Setup
 
+> **Preserved upstream provider:** TagPilot-LM keeps the original vLLM OpenAI-compatible provider for existing hosted or self-managed workflows. LM Studio is the primary Windows-local workflow in this fork; the vLLM fields remain available under **Cloud / Hosted Provider API Keys** for users who deliberately select vLLM.
+
 TagPilot can call vLLM through the OpenAI-compatible Chat Completions API. The important part is not the endpoint. The important part is whether the model behind vLLM can read images.
 
 The stock Runpod vLLM template starts with `Qwen/Qwen3-8B`. That model answers text prompts, but it rejects image payloads. For TagPilot tagging and captioning, run a vision-chat model such as Qwen2.5-VL, Qwen3-VL, Gemma 3, Pixtral, or Mistral Small.
@@ -21,11 +23,11 @@ In TagPilot Settings, choose:
 ```text
 Default model: vLLM OpenAI compatible
 vLLM endpoint URL: https://your-pod-8000.proxy.runpod.net
-vLLM API key: sk-your-pod
+vLLM API key: your configured VLLM_API_KEY value
 vLLM model preset: Qwen2.5 VL 7B Instruct
 ```
 
-If you set `VLLM_API_KEY` in the Runpod pod, use that value instead of `sk-your-pod`.
+If you set `VLLM_API_KEY` in the Runpod pod, use that value here.
 
 ## Recommended Models
 
@@ -147,7 +149,7 @@ Serve a model:
 vllm serve Qwen/Qwen2.5-VL-7B-Instruct \
   --host 0.0.0.0 \
   --port 8000 \
-  --api-key sk-local \
+  --api-key "${VLLM_API_KEY}" \
   --limit-mm-per-prompt image=1 \
   --max-model-len 8192
 ```
@@ -156,7 +158,7 @@ Then configure TagPilot:
 
 ```text
 vLLM endpoint URL: http://localhost:8000
-vLLM API key: sk-local
+vLLM API key: your configured VLLM_API_KEY value
 vLLM model type: Qwen/Qwen2.5-VL-7B-Instruct
 ```
 
@@ -177,7 +179,7 @@ http://127.0.0.1:8765/tagpilot.html
 List the currently loaded model:
 
 ```bash
-curl -H "Authorization: Bearer sk-your-key" \
+curl -H "Authorization: Bearer ${VLLM_API_KEY}" \
   https://your-pod-8000.proxy.runpod.net/v1/models
 ```
 
@@ -185,7 +187,7 @@ Test a tiny image request:
 
 ```bash
 curl -sS \
-  -H "Authorization: Bearer sk-your-key" \
+  -H "Authorization: Bearer ${VLLM_API_KEY}" \
   -H "Content-Type: application/json" \
   https://your-pod-8000.proxy.runpod.net/v1/chat/completions \
   -d '{
